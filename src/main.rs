@@ -12,6 +12,13 @@ fn main() {
         if command == "exit" {
             break;
         }
+        if command.starts_with("echo") {
+            if let Some(idx) = command.find(" ") && let Some(arg) = command.get(idx + 1..) {
+                print!("{}", arg);
+            }
+            println!();
+            continue;
+        }
         println!("{}: command not found", command);
         io::stdout().flush().unwrap();
     }
