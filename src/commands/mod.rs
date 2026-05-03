@@ -1,11 +1,12 @@
 mod echo;
-mod exit;
 mod exec;
-mod unknown;
+mod exit;
 mod type_cmd;
+mod unknown;
 
 use std::collections::HashMap;
-use std::fs;
+use std::fs::{self, Metadata};
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -14,8 +15,8 @@ use crate::commands::exec::Exec;
 
 pub use echo::Echo;
 pub use exit::Exit;
-pub use unknown::UnknownCommand;
 pub use type_cmd::Type;
+pub use unknown::UnknownCommand;
 
 fn command_args(command: &str) -> (&str, &str) {
     let command = command.trim();
@@ -38,10 +39,14 @@ pub fn command_from_input(input: &str) -> Box<dyn Command> {
     match command {
         "echo" => Box::new(Echo::new(args.to_string())),
         "exit" => Box::new(Exit),
-        "type" => Box::new(Type::new(
-            whitespace_args(args),
-        )),
-        _ => Box::new(UnknownCommand::new(command.to_string()))
+        "type" => Box::new(Type::new(whitespace_args(args))),
+        _ => {
+            if let Some(path) = find_in_path(command) {
+                Box::new(Exec::new(command.to_string(), path, whitespace_args(args)))
+            } else {
+                Box::new(UnknownCommand::new(command.to_string()))
+            }
+        },
     }
 }
 
@@ -50,14 +55,20 @@ pub fn find_in_path(command: &str) -> Option<PathBuf> {
     for ele in path.split(":") {
         if let Ok(res) = fs::read_dir(ele) {
             for e in res.flatten() {
-                if let Ok(file_type) = e.file_type() && file_type.is_file()
-                    && let Ok(name) = e.file_name().into_string() && name == command {
-                        if !e.metadata().unwrap().permissions().readonly() {
-                            return Some(e.path());
-                        }
-                    }
+                if let Ok(metadata) = e.metadata()
+                    && metadata.is_file()
+                    && let Ok(name) = e.file_name().into_string()
+                    && name == command
+                    && is_executable(metadata)
+                {
+                        return Some(e.path());
+                }
             }
         }
     }
     None
+}
+
+fn is_executable(metadata: Metadata) -> bool {
+    metadata.permissions().mode() & 0o111 != 0
 }
