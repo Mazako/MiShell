@@ -1,5 +1,6 @@
 use crate::command::Command;
 use crate::command_type::CommandType;
+use crate::shell_state::ShellState;
 
 pub struct Type {
     pub(super) args: Vec<String>,
@@ -12,13 +13,13 @@ impl Type {
 }
 
 impl Command for Type {
-    fn execute(&self) {
+    fn execute(&self, ctx: &mut ShellState) {
         let args = self.args();
         if args.is_empty() {
             println!();
             return;
         }
-        let cmd = super::command_from_input(&args[0]);
+        let cmd = super::command_from_input(&args[0], ctx);
         match cmd.command_type() {
             CommandType::Builtin => println!("{} is a shell builtin", cmd.name()),
             CommandType::Executable(path) => println!("{} is {}", cmd.name(), path.to_str().unwrap()),

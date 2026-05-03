@@ -1,5 +1,6 @@
 use crate::command::Command;
 use crate::command_type::CommandType;
+use crate::shell_state::ShellState;
 
 pub struct Echo {
     pub(super) args: String,
@@ -12,7 +13,7 @@ impl Echo {
 }
 
 impl Command for Echo {
-    fn execute(&self) {
+    fn execute(&self, _ctx: &mut ShellState) {
         println!("{}", self.args);
     }
 

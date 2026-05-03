@@ -1,6 +1,8 @@
 use std::{path::PathBuf};
 
-use crate::{command::Command, command_type::CommandType};
+use crate::command::Command;
+use crate::command_type::CommandType;
+use crate::shell_state::ShellState;
 
 pub struct Exec {
     name: String,
@@ -15,7 +17,7 @@ impl Exec {
 }
 
 impl Command for Exec {
-    fn execute(&self) {
+    fn execute(&self, _ctx: &mut ShellState) {
         std::process::Command::new(&self.name)
             .args(&self.args)
             .status()

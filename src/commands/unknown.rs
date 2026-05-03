@@ -1,5 +1,6 @@
 use crate::command::Command;
 use crate::command_type::CommandType;
+use crate::shell_state::ShellState;
 
 pub struct UnknownCommand {
     pub(super) command: String,
@@ -12,7 +13,7 @@ impl UnknownCommand {
 }
 
 impl Command for UnknownCommand {
-    fn execute(&self) {
+    fn execute(&self, _ctx: &mut ShellState) {
         println!("{}: command not found", self.command);
     }
 

@@ -1,10 +1,11 @@
 use crate::command::Command;
 use crate::command_type::CommandType;
+use crate::shell_state::ShellState;
 
 pub struct Exit;
 
 impl Command for Exit {
-    fn execute(&self) {
+    fn execute(&self, _ctx: &mut ShellState) {
         std::process::exit(0);
     }
 
