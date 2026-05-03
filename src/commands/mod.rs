@@ -33,9 +33,6 @@ fn whitespace_args(args: &str) -> Vec<String> {
 
 pub fn command_from_input(input: &str) -> Box<dyn Command> {
     let (command, args) = command_args(input);
-    if let Some(path) = find_in_path(command) {
-        return Box::new(Exec::new(command.to_string(), path, whitespace_args(args)));
-    }
     match command {
         "echo" => Box::new(Echo::new(args.to_string())),
         "exit" => Box::new(Exit),
