@@ -16,7 +16,10 @@ impl Exec {
 
 impl Command for Exec {
     fn execute(&self) {
-        todo!()
+        std::process::Command::new(&self.path)
+            .args(&self.args)
+            .status()
+            .unwrap();
     }
 
     fn args(&self) -> Vec<String> {
