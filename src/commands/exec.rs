@@ -16,7 +16,7 @@ impl Exec {
 
 impl Command for Exec {
     fn execute(&self) {
-        std::process::Command::new(&self.path)
+        std::process::Command::new(&self.name)
             .args(&self.args)
             .status()
             .unwrap();
