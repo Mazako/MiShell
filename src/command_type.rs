@@ -1,5 +1,7 @@
+use std::path::PathBuf;
+
 pub enum CommandType {
     Builtin,
-    Executable,
+    Executable(PathBuf),
     Unrecognized,
 }
