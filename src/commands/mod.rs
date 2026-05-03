@@ -52,7 +52,9 @@ pub fn find_in_path(command: &str) -> Option<PathBuf> {
             for e in res.flatten() {
                 if let Ok(file_type) = e.file_type() && file_type.is_file()
                     && let Ok(name) = e.file_name().into_string() && name == command {
-                        return Some(e.path());
+                        if !e.metadata().unwrap().permissions().readonly() {
+                            return Some(e.path());
+                        }
                     }
             }
         }
