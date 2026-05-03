@@ -29,13 +29,10 @@ pub fn init_path() -> Arc<HashMap<String, PathBuf>> {
     for ele in path.split(":") {
         if let Ok(res) = fs::read_dir(ele) {
             for e in res.flatten() {
-                if let Ok(file_type) = e.file_type() && file_type.is_file() {
-                    println!("{:?}", e.file_name());
-                    if let Ok(name) = e.file_name().into_string() {
+                if let Ok(file_type) = e.file_type() && file_type.is_file()
+                    && let Ok(name) = e.file_name().into_string() {
                         execs.insert(name, e.path());
                     }
-
-                }
             }
         }
     }
