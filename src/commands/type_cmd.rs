@@ -26,7 +26,7 @@ impl Command for Type {
         let cmd = super::command_from_input(&args[0], &self.cmd_cache);
         match cmd.command_type() {
             CommandType::Builtin => println!("{} is a shell builtin", cmd.name()),
-            CommandType::Executable(path) => println!("{} is a {}", cmd.name(), path.to_str().unwrap()),
+            CommandType::Executable(path) => println!("{} is {}", cmd.name(), path.to_str().unwrap()),
             CommandType::Unrecognized => println!("{}: not found", cmd.name()),
         }
     }

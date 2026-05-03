@@ -31,9 +31,7 @@ pub fn init_path() -> Arc<HashMap<String, PathBuf>> {
             for e in res.flatten() {
                 if let Ok(file_type) = e.file_type() && file_type.is_file()
                     && let Ok(name) = e.file_name().into_string() {
-                        if !execs.contains_key(&name) {
-                            execs.insert(name, e.path());
-                        }
+                        execs.entry(name).or_insert_with(|| e.path());
                     }
             }
         }
