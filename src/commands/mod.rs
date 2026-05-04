@@ -4,7 +4,7 @@ mod exit;
 mod type_cmd;
 mod unknown;
 mod pwd;
-
+mod cd;
 
 use std::fs::{self, Metadata};
 use std::os::unix::fs::PermissionsExt;
@@ -15,6 +15,7 @@ use crate::commands::exec::Exec;
 use crate::commands::pwd::Pwd;
 use crate::shell_state::ShellState;
 
+pub use cd::Cd;
 pub use echo::Echo;
 pub use exit::Exit;
 pub use type_cmd::Type;
@@ -40,6 +41,7 @@ pub fn command_from_input(input: &str, ctx: &ShellState) -> Box<dyn Command> {
         "exit" => Box::new(Exit),
         "type" => Box::new(Type::new(whitespace_args(args))),
         "pwd" => Box::new(Pwd),
+        "cd" => Box::new(Cd::new(whitespace_args(args))),
         _ => {
             if let Some(path) = find_in_path(command, &ctx.path_dirs) {
                 Box::new(Exec::new(command.to_string(), path, whitespace_args(args)))

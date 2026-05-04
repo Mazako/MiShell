@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{any, path::PathBuf};
 
 pub struct ShellState {
     pub path_dirs: Vec<PathBuf>,
