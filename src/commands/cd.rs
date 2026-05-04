@@ -34,7 +34,6 @@ impl Command for Cd {
         if let Ok(metadata) = normalized_dir.metadata() {
             if is_executable(metadata) {
                 ctx.cwd = normalized_dir;
-                println!()
             } else {
                 println!("permission denied");
             }
