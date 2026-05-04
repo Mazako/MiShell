@@ -3,6 +3,8 @@ mod exec;
 mod exit;
 mod type_cmd;
 mod unknown;
+mod pwd;
+
 
 use std::fs::{self, Metadata};
 use std::os::unix::fs::PermissionsExt;
@@ -10,6 +12,7 @@ use std::path::PathBuf;
 
 use crate::command::Command;
 use crate::commands::exec::Exec;
+use crate::commands::pwd::Pwd;
 use crate::shell_state::ShellState;
 
 pub use echo::Echo;
@@ -36,6 +39,7 @@ pub fn command_from_input(input: &str, ctx: &ShellState) -> Box<dyn Command> {
         "echo" => Box::new(Echo::new(args.to_string())),
         "exit" => Box::new(Exit),
         "type" => Box::new(Type::new(whitespace_args(args))),
+        "pwd" => Box::new(Pwd),
         _ => {
             if let Some(path) = find_in_path(command, &ctx.path_dirs) {
                 Box::new(Exec::new(command.to_string(), path, whitespace_args(args)))

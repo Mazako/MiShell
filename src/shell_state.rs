@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 pub struct ShellState {
     pub path_dirs: Vec<PathBuf>,
+    pub cwd:  PathBuf
 }
 
 impl ShellState {
@@ -9,6 +10,7 @@ impl ShellState {
         let path_dirs = std::env::var("PATH")
             .map(|p| p.split(':').map(PathBuf::from).collect())
             .unwrap_or_default();
-        Self { path_dirs }
+        let cwd = std::env::current_dir().unwrap();
+        Self { path_dirs, cwd }
     }
 }
