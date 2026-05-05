@@ -41,7 +41,15 @@ fn parse_args(args: &str) -> Vec<String> {
     let mut normal: Vec<String> = vec![];
     let mut current_token: String = "".into();
     let mut quote_mode = ParseMode::Normal;
-    for ele in args.trim().chars() {
+    let chars: Vec<char> = args.trim().chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let ele = chars[i];
+        if ele == '\\' && i != chars.len() - 1 {
+            current_token.push(chars[i + 1]);
+            i += 1;
+            continue;
+        }
         match quote_mode {
             ParseMode::Normal => {
                 if ele == ' ' {
@@ -72,6 +80,7 @@ fn parse_args(args: &str) -> Vec<String> {
                 }
             },
         }
+        i += 1;
 
         // if ele == ' ' {
             // if quote_mode {
