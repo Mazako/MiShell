@@ -3,22 +3,22 @@ use crate::command_type::CommandType;
 use crate::shell_state::ShellState;
 
 pub struct Echo {
-    pub(super) args: String,
+    pub(super) args: Vec<String>,
 }
 
 impl Echo {
-    pub(super) fn new(args: String) -> Self {
+    pub(super) fn new(args: Vec<String>) -> Self {
         Self { args }
     }
 }
 
 impl Command for Echo {
     fn execute(&self, _ctx: &mut ShellState) {
-        println!("{}", self.args);
+        println!("{}", self.args.join(" "));
     }
 
     fn args(&self) -> Vec<String> {
-        vec![self.args.clone()]
+        self.args.clone()
     }
 
     fn command_type(&self) -> CommandType {
