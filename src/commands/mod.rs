@@ -61,6 +61,9 @@ fn parse_args(args: &str) -> Vec<String> {
                     quote_mode = ParseMode::Quoted;
                 } else if ele == '\"' {
                     quote_mode = ParseMode::DoubleQuoted;
+                } else if ele == '\\' && i != chars.len() - 1 {
+                    current_token.push(chars[i + 1]);
+                    i += 1;
                 } else {
                     current_token.push(ele);
                 }
@@ -75,6 +78,12 @@ fn parse_args(args: &str) -> Vec<String> {
             ParseMode::DoubleQuoted => {
                 if ele == '\"' {
                     quote_mode = ParseMode::Normal;
+                } else if ele == '\\' && i != chars.len() - 1 {
+                    let c = chars[i + 1];
+                    if c == '\"' || c == '\\' || c == '$' || c == '`' || c == '\n' {
+                        current_token.push(c);
+                        i += 1;
+                    }
                 } else {
                     current_token.push(ele);
                 }
