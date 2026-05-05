@@ -30,10 +30,6 @@ fn command_args(command: &str) -> (&str, &str) {
     (command, "")
 }
 
-fn whitespace_args(args: &str) -> Vec<String> {
-    args.split_whitespace().map(|s| s.to_string()).collect()
-}
-
 fn parse_args(args: &str) -> Vec<String> {
     let mut normal: Vec<String> = vec![];
     let mut current_token: String = "".into();
@@ -65,12 +61,12 @@ pub fn command_from_input(input: &str, ctx: &ShellState) -> Box<dyn Command> {
     match command {
         "echo" => Box::new(Echo::new(parse_args(args))),
         "exit" => Box::new(Exit),
-        "type" => Box::new(Type::new(whitespace_args(args))),
+        "type" => Box::new(Type::new(parse_args(args))),
         "pwd" => Box::new(Pwd),
-        "cd" => Box::new(Cd::new(whitespace_args(args))),
+        "cd" => Box::new(Cd::new(parse_args(args))),
         _ => {
             if let Some(path) = find_in_path(command, &ctx.path_dirs) {
-                Box::new(Exec::new(command.to_string(), path, whitespace_args(args)))
+                Box::new(Exec::new(command.to_string(), path, parse_args(args)))
             } else {
                 Box::new(UnknownCommand::new(command.to_string()))
             }
