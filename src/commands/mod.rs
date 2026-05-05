@@ -6,6 +6,7 @@ mod unknown;
 mod pwd;
 mod cd;
 
+use std::env::args;
 use std::fs::{self, Metadata};
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
@@ -112,16 +113,21 @@ fn parse_args(args: &str) -> Vec<String> {
 }
 
 pub fn command_from_input(input: &str, ctx: &ShellState) -> Box<dyn Command> {
-    let (command, args) = command_args(input);
-    match command {
-        "echo" => Box::new(Echo::new(parse_args(args))),
+    let parsed = parse_args(input);
+    let (command, args) = if parsed.is_empty() {
+        ("".to_string(), vec!["".to_string()])
+    } else {
+        (parsed[0].to_string(), parsed[1..].to_vec())
+    };
+    match command.as_str() {
+        "echo" => Box::new(Echo::new(args)),
         "exit" => Box::new(Exit),
-        "type" => Box::new(Type::new(parse_args(args))),
+        "type" => Box::new(Type::new(args)),
         "pwd" => Box::new(Pwd),
-        "cd" => Box::new(Cd::new(parse_args(args))),
+        "cd" => Box::new(Cd::new(args)),
         _ => {
-            if let Some(path) = find_in_path(command, &ctx.path_dirs) {
-                Box::new(Exec::new(command.to_string(), path, parse_args(args)))
+            if let Some(path) = find_in_path(&command, &ctx.path_dirs) {
+                Box::new(Exec::new(command.to_string(), path, args))
             } else {
                 Box::new(UnknownCommand::new(command.to_string()))
             }
