@@ -48,7 +48,7 @@ fn parse_args(args: &str) -> Vec<String> {
         let ele = chars[i];
         if ele == '\\' && i != chars.len() - 1 {
             current_token.push(chars[i + 1]);
-            i += 1;
+            i += 2;
             continue;
         }
         match quote_mode {
