@@ -43,10 +43,9 @@ fn parse_args(args: &str) -> Vec<String> {
     let mut quote_mode = ParseMode::Normal;
     let chars: Vec<char> = args.trim().chars().collect();
     let mut i = 0;
-    let mut backslash = false;
     while i < chars.len() {
         let ele = chars[i];
-        if ele == '\\' && i != chars.len() - 1 {
+        if ele == '\\' && i != chars.len() - 1 && quote_mode == ParseMode::Normal {
             current_token.push(chars[i + 1]);
             i += 2;
             continue;
@@ -82,7 +81,6 @@ fn parse_args(args: &str) -> Vec<String> {
             },
         }
         i += 1;
-        backslash = false;
         // if ele == ' ' {
             // if quote_mode {
                 // current_token.push(ele);
