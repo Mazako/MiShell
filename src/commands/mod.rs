@@ -45,7 +45,6 @@ fn parse_args(args: &str) -> Vec<String> {
     let mut i = 0;
     let mut backslash = false;
     while i < chars.len() {
-        println!("{:?}{:?}", current_token, normal);
         let ele = chars[i];
         if ele == '\\' && i != chars.len() - 1 {
             current_token.push(chars[i + 1]);
