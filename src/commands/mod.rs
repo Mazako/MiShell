@@ -22,14 +22,6 @@ pub use exit::Exit;
 pub use type_cmd::Type;
 pub use unknown::UnknownCommand;
 
-fn command_args(command: &str) -> (&str, &str) {
-    let command = command.trim();
-    if let Some(idx) = command.find(' ') {
-        let args = &command[idx + 1..].trim();
-        return (&command[..idx], args);
-    }
-    (command, "")
-}
 
 #[derive(Eq, Debug, PartialEq)]
 enum ParseMode {
@@ -39,77 +31,61 @@ enum ParseMode {
 }
 
 fn parse_args(args: &str) -> Vec<String> {
-    let mut normal: Vec<String> = vec![];
-    let mut current_token: String = "".into();
+    let mut tokens: Vec<String> = Vec::new();
+    let mut current_token = String::new();
     let mut quote_mode = ParseMode::Normal;
-    let chars: Vec<char> = args.trim().chars().collect();
-    let mut i = 0;
-    while i < chars.len() {
-        let ele = chars[i];
-        if ele == '\\' && i != chars.len() - 1 && quote_mode == ParseMode::Normal {
-            current_token.push(chars[i + 1]);
-            i += 2;
-            continue;
-        }
+
+    let mut chars = args.trim().chars().peekable();
+
+    while let Some(ch) = chars.next() {
         match quote_mode {
             ParseMode::Normal => {
-                if ele == ' ' {
+                if ch == ' ' {
                     if !current_token.is_empty() {
-                        normal.push(current_token);
-                        current_token = "".into()
+                        tokens.push(current_token);
+                        current_token = String::new();
                     }
-                } else if ele == '\'' {
+                } else if ch == '\'' {
                     quote_mode = ParseMode::Quoted;
-                } else if ele == '\"' {
+                } else if ch == '"' {
                     quote_mode = ParseMode::DoubleQuoted;
-                } else if ele == '\\' && i != chars.len() - 1 {
-                    current_token.push(chars[i + 1]);
-                    i += 1;
-                } else {
-                    current_token.push(ele);
-                }
-            },
-            ParseMode::Quoted => {
-                if ele == '\'' {
-                    quote_mode = ParseMode::Normal;
-                } else {
-                    current_token.push(ele);
-                }
-            },
-            ParseMode::DoubleQuoted => {
-                if ele == '\"' {
-                    quote_mode = ParseMode::Normal;
-                } else if ele == '\\' && i != chars.len() - 1 {
-                    let c = chars[i + 1];
-                    if c == '\"' || c == '\\' || c == '$' || c == '`' || c == '\n' {
-                        current_token.push(c);
-                        i += 1;
+                } else if ch == '\\' {
+                    if let Some(next) = chars.next() {
+                        current_token.push(next);
                     }
                 } else {
-                    current_token.push(ele);
+                    current_token.push(ch);
                 }
-            },
+            }
+            ParseMode::Quoted => {
+                if ch == '\'' {
+                    quote_mode = ParseMode::Normal;
+                } else {
+                    current_token.push(ch);
+                }
+            }
+            ParseMode::DoubleQuoted => {
+                if ch == '"' {
+                    quote_mode = ParseMode::Normal;
+                } else if ch == '\\' {
+                    if let Some(&next) = chars.peek() {
+                        if matches!(next, '"' | '\\' | '$' | '`' | '\n') {
+                            current_token.push(chars.next().unwrap());
+                        } else {
+                        }
+                    }
+                } else {
+                    current_token.push(ch);
+                }
+            }
         }
-        i += 1;
-        // if ele == ' ' {
-            // if quote_mode {
-                // current_token.push(ele);
-            // } else {
-                // if !current_token.is_empty() {
-                    // normal.push(current_token);
-                    // current_token = "".into();
-                // }
-            // }
-        // } else if ele == '\'' {
-            // quote_mode = !quote_mode;
-        // } else {
-            // current_token.push(ele);
-        // }
     }
+
     if !current_token.trim().is_empty() {
-        normal.push(current_token);
+        tokens.push(current_token);
     }
-    normal
+
+    tokens
 }
 
 pub fn command_from_input(input: &str, ctx: &ShellState) -> Box<dyn Command> {
