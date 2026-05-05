@@ -43,7 +43,7 @@ fn parse_args(args: &str) -> Vec<String> {
             if quote_mode {
                 current_token.push(ele);
             } else {
-                if current_token != ' '.to_string() {
+                if !current_token.is_empty() {
                     normal.push(current_token);
                     current_token = "".into();
                 }
