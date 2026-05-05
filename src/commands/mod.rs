@@ -30,25 +30,63 @@ fn command_args(command: &str) -> (&str, &str) {
     (command, "")
 }
 
+#[derive(Eq, Debug, PartialEq)]
+enum ParseMode {
+    Normal,
+    Quoted,
+    DoubleQuoted
+}
+
 fn parse_args(args: &str) -> Vec<String> {
     let mut normal: Vec<String> = vec![];
     let mut current_token: String = "".into();
-    let mut quote_mode = false;
+    let mut quote_mode = ParseMode::Normal;
     for ele in args.trim().chars() {
-        if ele == ' ' {
-            if quote_mode {
-                current_token.push(ele);
-            } else {
-                if !current_token.is_empty() {
-                    normal.push(current_token);
-                    current_token = "".into();
+        match quote_mode {
+            ParseMode::Normal => {
+                if ele == ' ' {
+                    if !current_token.is_empty() {
+                        normal.push(current_token);
+                        current_token = "".into()
+                    }
+                } else if ele == '\'' {
+                    quote_mode = ParseMode::Quoted;
+                } else if ele == '\"' {
+                    quote_mode = ParseMode::DoubleQuoted;
+                } else {
+                    current_token.push(ele);
                 }
-            }
-        } else if ele == '\'' {
-            quote_mode = !quote_mode;
-        } else {
-            current_token.push(ele);
+            },
+            ParseMode::Quoted => {
+                if ele == '\'' {
+                    quote_mode = ParseMode::Normal;
+                } else {
+                    current_token.push(ele);
+                }
+            },
+            ParseMode::DoubleQuoted => {
+                if ele == '\"' {
+                    quote_mode = ParseMode::Normal;
+                } else {
+                    current_token.push(ele);
+                }
+            },
         }
+
+        // if ele == ' ' {
+            // if quote_mode {
+                // current_token.push(ele);
+            // } else {
+                // if !current_token.is_empty() {
+                    // normal.push(current_token);
+                    // current_token = "".into();
+                // }
+            // }
+        // } else if ele == '\'' {
+            // quote_mode = !quote_mode;
+        // } else {
+            // current_token.push(ele);
+        // }
     }
     if !current_token.trim().is_empty() {
         normal.push(current_token);
