@@ -45,7 +45,7 @@ impl Completer for MyHelper {
                             format!("{} ", f.replacement)
                         };
                         Pair {
-                            display: f.display,
+                            display: replacement.trim().to_string(),
                             replacement,
                         }
                     })
