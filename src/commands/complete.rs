@@ -97,7 +97,7 @@ impl Command for Complete {
                 if let Some(cmd) = parsed.flags.get("-p") {
                     if let Some(path) = ctx.completion_script_for(cmd) {
                         let script_path = path.display().to_string();
-                        self.print(Some(&format!("complete -C {script_path} {cmd}")), None);
+                        self.print(Some(&format!("complete -C '{script_path}' {cmd}")), None);
                     } else {
                         self.print(None, Some(&format!("complete: {cmd}: no completion specification")));
                     }
