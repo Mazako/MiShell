@@ -8,7 +8,9 @@ use std::{cell::RefCell, rc::Rc};
 use anyhow::Error;
 use commands::command_from_input;
 use rustyline::{
-    CompletionType, Config, Editor, Helper, Highlighter, Hinter, Validator, completion::{Completer, Pair}, config::BellStyle
+    CompletionType, Config, Editor, Helper, Highlighter, Hinter, Validator,
+    completion::{Completer, FilenameCompleter, Pair},
+    config::BellStyle,
 };
 
 use crate::{command::Token, commands::parse_args, shell_state::ShellState};
@@ -32,13 +34,29 @@ impl Completer for MyHelper {
             return Ok((0, Vec::with_capacity(0)));
         }
         let last = tokens.last().unwrap();
+        if tokens.len() > 1 {
+            if let Ok((size, pairs)) = FilenameCompleter::new().complete_path(line, pos) {
+                let mapped: Vec<Pair> = pairs
+                    .into_iter()
+                    .map(|f| Pair {
+                        display: f.display,
+                        replacement: format!("{} ", f.replacement),
+                    })
+                    .collect();
+                return Ok((size, mapped));
+            } else {
+                return Ok((0, Vec::with_capacity(0)));
+            }
+        }
         if let Token::Word(w) = last {
             let start = line.rmatch_indices(w).next().unwrap().0;
             let word = line[start..pos].to_string();
             let state = self.state.borrow();
-            let mut possible_hints = [self.commands.iter().collect(), state.path_command_names()].concat();
+            let mut possible_hints =
+                [self.commands.iter().collect(), state.path_command_names()].concat();
             possible_hints.sort();
-            let matches: Vec<Pair> = possible_hints.into_iter()
+            let matches: Vec<Pair> = possible_hints
+                .into_iter()
                 .filter(|c: &&String| c.to_lowercase().starts_with(&word))
                 .map(|c| Pair {
                     display: c.clone().to_string(),
