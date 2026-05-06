@@ -141,8 +141,6 @@ pub fn command_from_input(input: &str, ctx: &ShellState) -> Box<dyn Command> {
         args.push(token);
     }
 
-    println!("{:?}", args);
-
     match command.as_str() {
         "echo" => Box::new(Echo::new(args)),
         "exit" => Box::new(Exit::new(args)),
