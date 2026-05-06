@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 use thiserror::Error;
 
@@ -100,6 +100,14 @@ impl Command for Complete {
                         self.print(Some(&format!("complete -C {script_path} {cmd}")), None);
                     } else {
                         self.print(None, Some(&format!("complete: {cmd}: no completion specification")));
+                    }
+                    return;
+                }
+                if let Some(cmd) = parsed.flags.get("-C") {
+                    if let Some(target) = parsed.target {
+                        ctx.add_completion_script(target.as_str(), PathBuf::from(cmd));
+                    } else {
+                        self.print(None, Some(&format!("complete: {cmd}: no target specified")));
                     }
                 }
             }
