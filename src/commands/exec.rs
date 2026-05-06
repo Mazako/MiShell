@@ -1,8 +1,6 @@
 use std::path::PathBuf;
-use std::process::Stdio;
 
-use crate::command::Token;
-use crate::command::{Command, StreamTarget};
+use crate::command::{Command, Token};
 use crate::command_type::CommandType;
 use crate::shell_state::ShellState;
 
@@ -22,20 +20,7 @@ impl Command for Exec {
     fn execute(&self, _ctx: &mut ShellState) {
         let mut command = std::process::Command::new(&self.name);
         command.args(self.args());
-        match self.stdout() {
-            StreamTarget::Redirect(redirect) => {
-                let file = redirect.open_write();
-                command.stdout(Stdio::from(file));
-            }
-            StreamTarget::Inherit => {}
-        }
-        match self.stderr() {
-            StreamTarget::Redirect(redirect) => {
-                let file = redirect.open_write();
-                command.stderr(Stdio::from(file));
-            }
-            StreamTarget::Inherit => {}
-        }
+        self.apply_redirects(&mut command);
         command.status().unwrap();
     }
 

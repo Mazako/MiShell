@@ -1,7 +1,4 @@
-use std::io::Write;
-
-use crate::command::Token;
-use crate::command::{Command, StreamTarget};
+use crate::command::{Command, Token};
 use crate::command_type::CommandType;
 use crate::shell_state::ShellState;
 
@@ -17,37 +14,20 @@ impl Type {
 
 impl Command for Type {
     fn execute(&self, ctx: &mut ShellState) {
-        if let StreamTarget::Redirect(redirect) = self.stderr() {
-            redirect.touch();
-        }
         let args = self.args();
-        let write_out = |line: String, redirect: StreamTarget| match redirect {
-            StreamTarget::Redirect(redirect) => {
-                let mut file = redirect.open_write();
-                writeln!(file, "{line}").unwrap();
-            }
-            StreamTarget::Inherit => {
-                println!("{line}");
-            }
-        };
-
         if args.is_empty() {
-            write_out(String::new(), self.stdout());
+            self.print(Some(""), None);
             return;
         }
         let cmd = super::command_from_input(&args[0], ctx);
-        match cmd.command_type() {
-            CommandType::Builtin => {
-                write_out(format!("{} is a shell builtin", cmd.name()), self.stdout())
+        let line = match cmd.command_type() {
+            CommandType::Builtin => format!("{} is a shell builtin", cmd.name()),
+            CommandType::Executable(path) => {
+                format!("{} is {}", cmd.name(), path.to_str().unwrap())
             }
-            CommandType::Executable(path) => write_out(
-                format!("{} is {}", cmd.name(), path.to_str().unwrap()),
-                self.stdout(),
-            ),
-            CommandType::Unrecognized => {
-                write_out(format!("{}: not found", cmd.name()), self.stdout())
-            }
-        }
+            CommandType::Unrecognized => format!("{}: not found", cmd.name()),
+        };
+        self.print(Some(&line), None);
     }
 
     fn tokens(&self) -> Vec<Token> {

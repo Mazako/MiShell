@@ -9,6 +9,7 @@ pub struct ShellState {
     pub path_dirs: Vec<PathBuf>,
     pub cwd: PathBuf,
     path_commands: HashMap<String, PathBuf>,
+    completions_scripts: HashMap<String, PathBuf>,
 }
 
 impl ShellState {
@@ -22,6 +23,7 @@ impl ShellState {
             path_dirs,
             cwd,
             path_commands,
+            completions_scripts: HashMap::new(),
         }
     }
 
@@ -32,6 +34,15 @@ impl ShellState {
     pub fn path_command_names(&self) -> Vec<&String> {
         self.path_commands.keys().collect()
     }
+
+    pub fn add_completion_script(&mut self, command: &str, path: PathBuf) {
+        self.completions_scripts.insert(command.to_string(), path);
+    }
+
+    pub fn completion_script_for(&self, command: &str) -> Option<&PathBuf> {
+        self.completions_scripts.get(command)
+    }
+
 }
 
 pub fn is_executable(metadata: Metadata) -> bool {

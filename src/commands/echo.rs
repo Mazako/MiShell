@@ -1,7 +1,4 @@
-use std::io::Write;
-
-use crate::command::Token;
-use crate::command::{Command, StreamTarget};
+use crate::command::{Command, Token};
 use crate::command_type::CommandType;
 use crate::shell_state::ShellState;
 
@@ -17,19 +14,7 @@ impl Echo {
 
 impl Command for Echo {
     fn execute(&self, _ctx: &mut ShellState) {
-        if let StreamTarget::Redirect(redirect) = self.stderr() {
-            redirect.touch();
-        }
-        let output = self.args().join(" ");
-        match self.stdout() {
-            StreamTarget::Redirect(redirect) => {
-                let mut file = redirect.open_write();
-                writeln!(file, "{output}").unwrap();
-            }
-            StreamTarget::Inherit => {
-                println!("{output}");
-            }
-        }
+        self.print(Some(&self.args().join(" ")), None);
     }
 
     fn tokens(&self) -> Vec<Token> {

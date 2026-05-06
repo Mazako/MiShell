@@ -1,12 +1,11 @@
 use std::{
     env::set_current_dir,
     io::ErrorKind,
-    io::Write,
     path::{Path, PathBuf},
 };
 
 use crate::{
-    command::{Command, StreamTarget, Token},
+    command::{Command, Token},
     command_type::CommandType,
     shell_state::{ShellState, is_executable},
 };
@@ -59,34 +58,18 @@ impl Cd {
 
 impl Command for Cd {
     fn execute(&self, ctx: &mut ShellState) {
-        if let StreamTarget::Redirect(redirect) = self.stdout() {
-            redirect.touch();
-        }
+        self.print(None, None);
         let args = self.args();
         if args.is_empty() {
             return;
         }
         let raw = PathBuf::from(&args[0]);
-
-        let write_err = |line: String, redirect: StreamTarget| match redirect {
-            StreamTarget::Redirect(redirect) => {
-                let mut file = redirect.open_write();
-                writeln!(file, "{line}").unwrap();
-            }
-            StreamTarget::Inherit => {
-                eprintln!("{line}");
-            }
-        };
-
         let path = match Self::resolve_target(raw, &ctx.cwd) {
             Ok(p) => p,
-            Err(msg) => {
-                write_err(msg, self.stderr());
-                return;
-            }
+            Err(msg) => return self.print(None, Some(&msg)),
         };
         if let Err(msg) = Self::apply_chdir(&path, ctx) {
-            write_err(msg, self.stderr());
+            self.print(None, Some(&msg));
         }
     }
 
