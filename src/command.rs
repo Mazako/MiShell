@@ -5,6 +5,12 @@ use crate::command_type::CommandType;
 use crate::shell_state::ShellState;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub enum StreamTarget {
+    Inherit,
+    Redirect(Redirect),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Redirect {
     pub path: PathBuf,
     pub append: bool,
@@ -20,6 +26,10 @@ impl Redirect {
             opts.truncate(true);
         }
         opts.open(&self.path).unwrap()
+    }
+
+    pub fn touch(&self) {
+        let _ = self.open_write();
     }
 }
 
@@ -45,24 +55,30 @@ pub trait Command {
             .collect()
     }
 
-    fn stdout(&self) -> Option<Redirect> {
-        self.tokens().into_iter().find_map(|token| match token {
-            Token::RedirectStdout { path, append } => Some(Redirect {
-                path: PathBuf::from(path),
-                append,
-            }),
-            _ => None,
-        })
+    fn stdout(&self) -> StreamTarget {
+        self.tokens()
+            .into_iter()
+            .find_map(|token| match token {
+                Token::RedirectStdout { path, append } => Some(StreamTarget::Redirect(Redirect {
+                    path: PathBuf::from(path),
+                    append,
+                })),
+                _ => None,
+            })
+            .unwrap_or(StreamTarget::Inherit)
     }
 
-    fn stderr(&self) -> Option<Redirect> {
-        self.tokens().into_iter().find_map(|token| match token {
-            Token::RedirectStderr { path, append } => Some(Redirect {
-                path: PathBuf::from(path),
-                append,
-            }),
-            _ => None,
-        })
+    fn stderr(&self) -> StreamTarget {
+        self.tokens()
+            .into_iter()
+            .find_map(|token| match token {
+                Token::RedirectStderr { path, append } => Some(StreamTarget::Redirect(Redirect {
+                    path: PathBuf::from(path),
+                    append,
+                })),
+                _ => None,
+            })
+            .unwrap_or(StreamTarget::Inherit)
     }
 
     fn command_type(&self) -> CommandType;

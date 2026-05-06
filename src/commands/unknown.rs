@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::command::{Command, Token};
+use crate::command::{Command, StreamTarget, Token};
 use crate::command_type::CommandType;
 use crate::shell_state::ShellState;
 
@@ -17,12 +17,18 @@ impl UnknownCommand {
 
 impl Command for UnknownCommand {
     fn execute(&self, _ctx: &mut ShellState) {
+        if let StreamTarget::Redirect(redirect) = self.stdout() {
+            redirect.touch();
+        }
         let output = format!("{}: command not found", self.command);
-        if let Some(redirect) = self.stderr() {
-            let mut file = redirect.open_write();
-            writeln!(file, "{output}").unwrap();
-        } else {
-            eprintln!("{output}");
+        match self.stderr() {
+            StreamTarget::Redirect(redirect) => {
+                let mut file = redirect.open_write();
+                writeln!(file, "{output}").unwrap();
+            }
+            StreamTarget::Inherit => {
+                eprintln!("{output}");
+            }
         }
     }
 

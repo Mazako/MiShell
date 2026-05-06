@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{command::{Command, Token}, command_type::CommandType, commands::is_executable, shell_state::ShellState};
+use crate::{command::{Command, StreamTarget, Token}, command_type::CommandType, commands::is_executable, shell_state::ShellState};
 
 pub struct Cd {
     tokens: Vec<Token>,
@@ -57,17 +57,21 @@ impl Cd {
 
 impl Command for Cd {
     fn execute(&self, ctx: &mut ShellState) {
+        if let StreamTarget::Redirect(redirect) = self.stdout() {
+            redirect.touch();
+        }
         let args = self.args();
         if args.is_empty() {
             return;
         }
         let raw = PathBuf::from(&args[0]);
 
-        let write_err = |line: String, redirect: Option<crate::command::Redirect>| {
-            if let Some(redirect) = redirect {
+        let write_err = |line: String, redirect: StreamTarget| match redirect {
+            StreamTarget::Redirect(redirect) => {
                 let mut file = redirect.open_write();
                 writeln!(file, "{line}").unwrap();
-            } else {
+            }
+            StreamTarget::Inherit => {
                 eprintln!("{line}");
             }
         };

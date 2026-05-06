@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::command::Command;
+use crate::command::{Command, StreamTarget};
 use crate::command::Token;
 use crate::command_type::CommandType;
 use crate::shell_state::ShellState;
@@ -17,12 +17,16 @@ impl Type {
 
 impl Command for Type {
     fn execute(&self, ctx: &mut ShellState) {
+        if let StreamTarget::Redirect(redirect) = self.stderr() {
+            redirect.touch();
+        }
         let args = self.args();
-        let write_out = |line: String, redirect: Option<crate::command::Redirect>| {
-            if let Some(redirect) = redirect {
+        let write_out = |line: String, redirect: StreamTarget| match redirect {
+            StreamTarget::Redirect(redirect) => {
                 let mut file = redirect.open_write();
                 writeln!(file, "{line}").unwrap();
-            } else {
+            }
+            StreamTarget::Inherit => {
                 println!("{line}");
             }
         };

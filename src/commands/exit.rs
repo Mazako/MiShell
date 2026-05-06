@@ -1,4 +1,4 @@
-use crate::command::{Command, Token};
+use crate::command::{Command, StreamTarget, Token};
 use crate::command_type::CommandType;
 use crate::shell_state::ShellState;
 
@@ -14,6 +14,12 @@ impl Exit {
 
 impl Command for Exit {
     fn execute(&self, _ctx: &mut ShellState) {
+        if let StreamTarget::Redirect(redirect) = self.stdout() {
+            redirect.touch();
+        }
+        if let StreamTarget::Redirect(redirect) = self.stderr() {
+            redirect.touch();
+        }
         std::process::exit(0);
     }
 
