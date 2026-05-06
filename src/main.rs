@@ -8,8 +8,7 @@ use std::{cell::RefCell, rc::Rc};
 use anyhow::Error;
 use commands::command_from_input;
 use rustyline::{
-    Config, Editor, Helper, Highlighter, Hinter, Validator,
-    completion::{Completer, Pair},
+    CompletionType, Config, Editor, Helper, Highlighter, Hinter, Validator, completion::{Completer, Pair}, config::BellStyle
 };
 
 use crate::{command::Token, commands::parse_args, shell_state::ShellState};
@@ -37,13 +36,12 @@ impl Completer for MyHelper {
             let start = line.rmatch_indices(w).next().unwrap().0;
             let word = line[start..pos].to_string();
             let state = self.state.borrow();
-            let matches: Vec<Pair> = self
-                .commands
-                .iter()
-                .chain(state.path_command_names())
+            let mut possible_hints = [self.commands.iter().collect(), state.path_command_names()].concat();
+            possible_hints.sort();
+            let matches: Vec<Pair> = possible_hints.into_iter()
                 .filter(|c: &&String| c.to_lowercase().starts_with(&word))
                 .map(|c| Pair {
-                    display: format!("{} ", c.clone()),
+                    display: c.clone().to_string(),
                     replacement: format!("{} ", c.clone()),
                 })
                 .collect();
@@ -56,7 +54,10 @@ impl Completer for MyHelper {
 
 fn main() -> Result<(), Error> {
     let state = Rc::new(RefCell::new(ShellState::new()));
-    let cfg = Config::builder().build();
+    let cfg = Config::builder()
+        .completion_type(CompletionType::List)
+        .bell_style(BellStyle::Audible)
+        .build();
     let mut rl = Editor::with_config(cfg)?;
     let helper = MyHelper {
         commands: vec![
