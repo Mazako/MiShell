@@ -34,13 +34,20 @@ impl Completer for MyHelper {
             return Ok((0, Vec::with_capacity(0)));
         }
         let last = tokens.last().unwrap();
-        if tokens.len() > 1 {
+        if tokens.len() > 1 || &line[pos - 1..pos] == " " {
             if let Ok((size, pairs)) = FilenameCompleter::new().complete_path(line, pos) {
                 let mapped: Vec<Pair> = pairs
                     .into_iter()
-                    .map(|f| Pair {
-                        display: f.display,
-                        replacement: format!("{} ", f.replacement),
+                    .map(|f| {
+                        let replacement = if f.replacement.ends_with("/") {
+                            f.replacement
+                        } else {
+                            format!("{} ", f.replacement)
+                        };
+                        Pair {
+                            display: f.display,
+                            replacement,
+                        }
                     })
                     .collect();
                 return Ok((size, mapped));
