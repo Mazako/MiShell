@@ -1,18 +1,19 @@
 use std::{
     env::set_current_dir,
     io::ErrorKind,
+    io::Write,
     path::{Path, PathBuf},
 };
 
-use crate::{command::Command, command_type::CommandType, commands::is_executable, shell_state::ShellState};
+use crate::{command::{Command, Token}, command_type::CommandType, commands::is_executable, shell_state::ShellState};
 
 pub struct Cd {
-    args: Vec<String>,
+    tokens: Vec<Token>,
 }
 
 impl Cd {
-    pub(super) fn new(args: Vec<String>) -> Self {
-        Self { args }
+    pub(super) fn new(tokens: Vec<Token>) -> Self {
+        Self { tokens }
     }
 
     fn resolve_target(raw: PathBuf, cwd: &Path) -> Result<PathBuf, String> {
@@ -56,24 +57,35 @@ impl Cd {
 
 impl Command for Cd {
     fn execute(&self, ctx: &mut ShellState) {
-        if self.args.is_empty() {
+        let args = self.args();
+        if args.is_empty() {
             return;
         }
-        let raw = PathBuf::from(&self.args[0]);
+        let raw = PathBuf::from(&args[0]);
+
+        let write_err = |line: String, redirect: Option<crate::command::Redirect>| {
+            if let Some(redirect) = redirect {
+                let mut file = redirect.open_write();
+                writeln!(file, "{line}").unwrap();
+            } else {
+                eprintln!("{line}");
+            }
+        };
+
         let path = match Self::resolve_target(raw, &ctx.cwd) {
             Ok(p) => p,
             Err(msg) => {
-                println!("{msg}");
+                write_err(msg, self.stderr());
                 return;
             }
         };
         if let Err(msg) = Self::apply_chdir(&path, ctx) {
-            println!("{msg}");
+            write_err(msg, self.stderr());
         }
     }
 
-    fn args(&self) -> Vec<String> {
-        self.args.clone()
+    fn tokens(&self) -> Vec<Token> {
+        self.tokens.clone()
     }
 
     fn command_type(&self) -> CommandType {
