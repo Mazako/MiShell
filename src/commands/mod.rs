@@ -29,7 +29,7 @@ enum ParseMode {
     DoubleQuoted
 }
 
-fn parse_args(args: &str) -> Vec<Token> {
+pub fn parse_args(args: &str) -> Vec<Token> {
     let mut tokens: Vec<(String, bool)> = Vec::new();
     let mut current_token = String::new();
     let mut current_token_escaped = false;
@@ -128,7 +128,7 @@ pub fn command_from_input(input: &str, ctx: &ShellState) -> Box<dyn Command> {
     let parsed_tokens = parse_args(input);
     let mut command = String::new();
     let mut args: Vec<Token> = Vec::new();
-    let mut saw_command = false;
+    let mut saw_command: bool = false;
 
     for token in parsed_tokens {
         if !saw_command {
