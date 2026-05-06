@@ -1,7 +1,7 @@
 use std::io::Write;
 
-use crate::command::{Command, StreamTarget};
 use crate::command::Token;
+use crate::command::{Command, StreamTarget};
 use crate::command_type::CommandType;
 use crate::shell_state::ShellState;
 

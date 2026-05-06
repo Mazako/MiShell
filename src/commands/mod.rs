@@ -1,14 +1,10 @@
+mod cd;
 mod echo;
 mod exec;
 mod exit;
+mod pwd;
 mod type_cmd;
 mod unknown;
-mod pwd;
-mod cd;
-
-use std::fs::{self, Metadata};
-use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
 
 use crate::command::{Command, Token};
 use crate::commands::exec::Exec;
@@ -21,12 +17,11 @@ pub use exit::Exit;
 pub use type_cmd::Type;
 pub use unknown::UnknownCommand;
 
-
 #[derive(Eq, Debug, PartialEq)]
 enum ParseMode {
     Normal,
     Quoted,
-    DoubleQuoted
+    DoubleQuoted,
 }
 
 pub fn parse_args(args: &str) -> Vec<Token> {
@@ -70,12 +65,13 @@ pub fn parse_args(args: &str) -> Vec<Token> {
                     quote_mode = ParseMode::Normal;
                 } else if ch == '\\' {
                     if let Some(&next) = chars.peek()
-                        && matches!(next, '"' | '\\' | '$' | '`' | '\n') {
-                            current_token_escaped = true;
-                            current_token.push(chars.next().unwrap());
-                        } else {
-                            current_token.push('\\');
-                        }
+                        && matches!(next, '"' | '\\' | '$' | '`' | '\n')
+                    {
+                        current_token_escaped = true;
+                        current_token.push(chars.next().unwrap());
+                    } else {
+                        current_token.push('\\');
+                    }
                 } else {
                     current_token_escaped = true;
                     current_token.push(ch);
@@ -100,7 +96,7 @@ fn push_current_token(
     }
 }
 
-fn tokenize(args: Vec<(String, bool)>)  -> Vec<Token> {
+fn tokenize(args: Vec<(String, bool)>) -> Vec<Token> {
     let mut tokens: Vec<Token> = Vec::new();
     let mut iter = args.into_iter();
     while let Some((arg, escaped)) = iter.next() {
@@ -108,13 +104,25 @@ fn tokenize(args: Vec<(String, bool)>)  -> Vec<Token> {
             Token::Word(arg)
         } else {
             if arg == ">" || arg == "1>" {
-                Token::RedirectStdout { path: iter.next().unwrap().0, append: false }
+                Token::RedirectStdout {
+                    path: iter.next().unwrap().0,
+                    append: false,
+                }
             } else if arg == ">>" || arg == "1>>" {
-                Token::RedirectStdout { path: iter.next().unwrap().0, append: true }
+                Token::RedirectStdout {
+                    path: iter.next().unwrap().0,
+                    append: true,
+                }
             } else if arg == "2>" {
-                Token::RedirectStderr { path: iter.next().unwrap().0, append: false }
+                Token::RedirectStderr {
+                    path: iter.next().unwrap().0,
+                    append: false,
+                }
             } else if arg == "2>>" {
-                Token::RedirectStderr { path: iter.next().unwrap().0, append: true }
+                Token::RedirectStderr {
+                    path: iter.next().unwrap().0,
+                    append: true,
+                }
             } else {
                 Token::Word(arg)
             }
@@ -148,33 +156,11 @@ pub fn command_from_input(input: &str, ctx: &ShellState) -> Box<dyn Command> {
         "pwd" => Box::new(Pwd::new(args)),
         "cd" => Box::new(Cd::new(args)),
         _ => {
-            if let Some(path) = find_in_path(&command, &ctx.path_dirs) {
+            if let Some(path) = ctx.find_in_path(&command) {
                 Box::new(Exec::new(command.to_string(), path, args))
             } else {
                 Box::new(UnknownCommand::new(command.to_string(), args))
             }
         }
     }
-}
-
-pub fn find_in_path(command: &str, path_dirs: &[PathBuf]) -> Option<PathBuf> {
-    for dir in path_dirs {
-        if let Ok(res) = fs::read_dir(dir) {
-            for e in res.flatten() {
-                if let Ok(metadata) = e.metadata()
-                    && metadata.is_file()
-                    && let Ok(name) = e.file_name().into_string()
-                    && name == command
-                    && is_executable(metadata)
-                {
-                    return Some(e.path());
-                }
-            }
-        }
-    }
-    None
-}
-
-fn is_executable(metadata: Metadata) -> bool {
-    metadata.permissions().mode() & 0o111 != 0
 }

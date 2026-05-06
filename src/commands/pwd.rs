@@ -1,7 +1,10 @@
 use std::io::Write;
 
-use crate::{command::{Command, StreamTarget, Token}, command_type::CommandType, shell_state::ShellState};
-
+use crate::{
+    command::{Command, StreamTarget, Token},
+    command_type::CommandType,
+    shell_state::ShellState,
+};
 
 pub struct Pwd {
     tokens: Vec<Token>,

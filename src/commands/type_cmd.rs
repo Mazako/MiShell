@@ -1,7 +1,7 @@
 use std::io::Write;
 
-use crate::command::{Command, StreamTarget};
 use crate::command::Token;
+use crate::command::{Command, StreamTarget};
 use crate::command_type::CommandType;
 use crate::shell_state::ShellState;
 
@@ -37,9 +37,16 @@ impl Command for Type {
         }
         let cmd = super::command_from_input(&args[0], ctx);
         match cmd.command_type() {
-            CommandType::Builtin => write_out(format!("{} is a shell builtin", cmd.name()), self.stdout()),
-            CommandType::Executable(path) => write_out(format!("{} is {}", cmd.name(), path.to_str().unwrap()), self.stdout()),
-            CommandType::Unrecognized => write_out(format!("{}: not found", cmd.name()), self.stdout()),
+            CommandType::Builtin => {
+                write_out(format!("{} is a shell builtin", cmd.name()), self.stdout())
+            }
+            CommandType::Executable(path) => write_out(
+                format!("{} is {}", cmd.name(), path.to_str().unwrap()),
+                self.stdout(),
+            ),
+            CommandType::Unrecognized => {
+                write_out(format!("{}: not found", cmd.name()), self.stdout())
+            }
         }
     }
 

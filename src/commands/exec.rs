@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 use std::process::Stdio;
 
-use crate::command::{Command, StreamTarget};
 use crate::command::Token;
+use crate::command::{Command, StreamTarget};
 use crate::command_type::CommandType;
 use crate::shell_state::ShellState;
 
@@ -49,6 +49,5 @@ impl Command for Exec {
 
     fn name(&self) -> &str {
         &self.name
-
     }
 }

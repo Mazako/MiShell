@@ -5,7 +5,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{command::{Command, StreamTarget, Token}, command_type::CommandType, commands::is_executable, shell_state::ShellState};
+use crate::{
+    command::{Command, StreamTarget, Token},
+    command_type::CommandType,
+    shell_state::{ShellState, is_executable},
+};
 
 pub struct Cd {
     tokens: Vec<Token>,
@@ -21,7 +25,8 @@ impl Cd {
             return Ok(raw);
         }
         if raw == Path::new("~") {
-            return std::env::home_dir().ok_or_else(|| "cd: could not determine home directory".to_string());
+            return std::env::home_dir()
+                .ok_or_else(|| "cd: could not determine home directory".to_string());
         }
         let joined = cwd.join(&raw);
         joined.canonicalize().map_err(|e| {
@@ -36,10 +41,7 @@ impl Cd {
 
     fn apply_chdir(path: &Path, ctx: &mut ShellState) -> Result<(), String> {
         if !path.exists() {
-            return Err(format!(
-                "cd: {}: No such file or directory",
-                path.display()
-            ));
+            return Err(format!("cd: {}: No such file or directory", path.display()));
         }
         if path.is_file() {
             return Err(format!("cd: not a directory: {}", path.display()));
