@@ -1,4 +1,6 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::RefCell, path::PathBuf, process::Command, rc::Rc
+};
 
 use rustyline::{
     Helper, Highlighter, Hinter, Validator,
@@ -14,9 +16,6 @@ pub struct MyHelper {
 }
 
 impl MyHelper {
-    fn should_complete_files(line: &str, pos: usize, token_count: usize) -> bool {
-        token_count > 1 || line.get(pos.saturating_sub(1)..pos) == Some(" ")
-    }
 
     fn complete_files(&self, line: &str, pos: usize) -> rustyline::Result<(usize, Vec<Pair>)> {
         if let Ok((start, pairs)) = FilenameCompleter::new().complete_path(line, pos) {
@@ -40,23 +39,49 @@ impl MyHelper {
         }
     }
 
-    fn complete_commands(&self, line: &str, pos: usize, word: &str) -> rustyline::Result<(usize, Vec<Pair>)> {
-        let start = line.rmatch_indices(word).next().unwrap().0;
-        let prefix = line[start..pos].to_lowercase();
-        let state = self.state.borrow();
+    fn custom_complete_candidates(&self, path: &PathBuf) -> Vec<String> {
+        let program = Command::new(path).output();
+        if let Ok(output) = program {
+            return String::from_utf8_lossy(&output.stdout).lines()
+            .map(|f| f.trim().to_string())
+            .collect();
+        }
+        Vec::new()
+    }
 
-        let mut candidates: Vec<String> = self
+    fn regular_complete_candidates(&self) -> Vec<String> {
+        let state = self.state.borrow();
+        let mut completions: Vec<String> = self
             .commands
             .iter()
             .cloned()
             .chain(state.path_command_names().into_iter().cloned())
             .collect();
-        candidates.sort();
-        candidates.dedup();
+        completions.sort();
+        completions.dedup();
+        completions
+    }
 
+    fn complete_commands(
+        &self,
+        line: &str,
+        pos: usize,
+        word: &str,
+        candidates: Vec<String>,
+        allow_empty: bool
+    ) -> rustyline::Result<(usize, Vec<Pair>)> {
+        let start = line.rmatch_indices(word).next().unwrap().0;
+        let prefix = line[start..pos].to_lowercase();
+        let fil = |cand: &String| {
+            if allow_empty {
+                true
+            } else {
+                cand.to_lowercase().starts_with(&prefix)
+            }
+        };
         let matches = candidates
             .into_iter()
-            .filter(|candidate| candidate.to_lowercase().starts_with(&prefix))
+            .filter(fil)
             .map(|candidate| Pair {
                 display: candidate.clone(),
                 replacement: format!("{} ", candidate),
@@ -75,18 +100,49 @@ impl Completer for MyHelper {
         pos: usize,
         _: &rustyline::Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Pair>)> {
+        if line.trim().is_empty() {
+            return Ok((0, Vec::new()));
+        }
+
         let tokens = parse_args(line.trim());
-        let Some(last_token) = tokens.last() else {
+
+        let (pre, target) = triplet(line, pos, &tokens);
+
+        let Some(target_str) = target else {
             return Ok((0, Vec::new()));
         };
 
-        if Self::should_complete_files(line, pos, tokens.len()) {
-            return self.complete_files(line, pos);
-        }
+        let Some(pre_str) = pre else {
+            return self.complete_commands(
+                line,
+                pos,
+                &target_str,
+                self.regular_complete_candidates(),
+                false
+            );
+        };
 
-        match last_token {
-            Token::Word(word) => self.complete_commands(line, pos, word),
-            _ => Ok((0, Vec::new())),
+        let state = self.state.borrow();
+        if let Some(completion_path) = state.completion_script_for(&pre_str) {
+            return self.complete_commands(
+                line,
+                pos,
+                &target_str,
+                self.custom_complete_candidates(completion_path),
+                true
+            );
         }
+        self.complete_files(line, pos)
     }
+}
+
+fn triplet(line: &str, pos: usize, tokens: &[Token]) -> (Option<String>, Option<String>) {
+    let mut words: Vec<String> = tokens.iter().flat_map(|t| t.to_simple_string()).collect();
+    if line.get(pos.saturating_sub(1)..pos) == Some(" ") {
+        words.push(String::new());
+    }
+    let target = words.pop();
+    let pre = words.pop();
+
+    (pre, target)
 }

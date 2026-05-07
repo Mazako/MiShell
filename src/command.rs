@@ -42,6 +42,16 @@ pub enum Token {
     RedirectStderr { path: String, append: bool },
 }
 
+impl Token {
+    pub fn to_simple_string(&self) -> Vec<String> {
+        match &self {
+            Token::Word(w) => vec![w.clone()],
+            Token::RedirectStdout { path, append: _ } => vec![">".to_string(), path.clone()],
+            Token::RedirectStderr { path, append: _ } => vec![">".to_string(), path.clone()],
+        }
+    }
+}
+
 pub trait Command {
     fn execute(&self, ctx: &mut ShellState);
 
