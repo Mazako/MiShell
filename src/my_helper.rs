@@ -1,4 +1,4 @@
-use std::{cell::RefCell, path::PathBuf, process::Command, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, path::PathBuf, process::Command, rc::Rc};
 
 use rustyline::{
     Helper, Highlighter, Hinter, Validator,
@@ -42,9 +42,17 @@ impl MyHelper {
         command: &str,
         word: &str,
         prev_word: &str,
+        comp_line: &str,
+        comp_point: usize,
     ) -> Vec<String> {
-        let program = Command::new(path)
+        let comp_point_str = comp_point.to_string();
+        let envs: HashMap<&str, &str> = [("COMP_LINE", comp_line), ("COMP_POINT", &comp_point_str)]
+            .into_iter()
+            .collect();
+
+        let program: Result<std::process::Output, std::io::Error> = Command::new(path)
             .args(vec![command, word, prev_word])
+            .envs(envs)
             .output();
         if let Ok(output) = program {
             return String::from_utf8_lossy(&output.stdout)
@@ -134,7 +142,14 @@ impl Completer for MyHelper {
                 line,
                 pos,
                 &target_str,
-                self.custom_complete_candidates(completion_path, &prev1_str, &target_str, ""),
+                self.custom_complete_candidates(
+                    completion_path,
+                    &prev1_str,
+                    &target_str,
+                    "",
+                    line,
+                    pos,
+                ),
                 true,
             );
         }
@@ -151,6 +166,8 @@ impl Completer for MyHelper {
                     &prev2_str,
                     &target_str,
                     &prev1_str,
+                    line,
+                    pos,
                 ),
                 true,
             );
