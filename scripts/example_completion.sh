@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
 # Print one completion candidate per line.
-printf '%s' \
-  "start" \
+printf '%s\n' \
+  "add" \
+  "commit" \
+  "push"

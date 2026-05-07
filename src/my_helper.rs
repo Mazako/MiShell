@@ -14,6 +14,68 @@ pub struct MyHelper {
 }
 
 impl MyHelper {
+    fn complete_inner(&self, line: &str, pos: usize) -> rustyline::Result<(usize, Vec<Pair>)> {
+        if line.trim().is_empty() {
+            return Ok((0, Vec::new()));
+        }
+
+        let tokens = parse_args(line.trim());
+
+        let (prev2, prev1, target) = triplet(line, pos, &tokens);
+
+        let Some(target_str) = target else {
+            return Ok((0, Vec::new()));
+        };
+
+        let Some(prev1_str) = prev1 else {
+            return self.complete_commands(
+                line,
+                pos,
+                &target_str,
+                self.regular_complete_candidates(),
+                false,
+            );
+        };
+
+        let state = self.state.borrow();
+        if let Some(completion_path) = state.completion_script_for(&prev1_str) {
+            return self.complete_commands(
+                line,
+                pos,
+                &target_str,
+                self.custom_complete_candidates(
+                    completion_path,
+                    &prev1_str,
+                    &target_str,
+                    &prev1_str,
+                    line,
+                    pos,
+                ),
+                true,
+            );
+        }
+
+        if let Some(prev2_str) = prev2
+            && let Some(completion_path) = state.completion_script_for(&prev2_str)
+        {
+            return self.complete_commands(
+                line,
+                pos,
+                &target_str,
+                self.custom_complete_candidates(
+                    completion_path,
+                    &prev2_str,
+                    &target_str,
+                    &prev1_str,
+                    line,
+                    pos,
+                ),
+                true,
+            );
+        }
+        self.complete_files(line, pos)
+    }
+
     fn complete_files(&self, line: &str, pos: usize) -> rustyline::Result<(usize, Vec<Pair>)> {
         if let Ok((start, pairs)) = FilenameCompleter::new().complete_path(line, pos) {
             let matches = pairs
@@ -87,7 +149,7 @@ impl MyHelper {
         let start = line.rmatch_indices(word).next().unwrap().0;
         let prefix = line[start..pos].to_lowercase();
         let fil = |cand: &String| {
-            if allow_empty {
+            if allow_empty && cand.is_empty() {
                 true
             } else {
                 cand.to_lowercase().starts_with(&prefix)
@@ -114,65 +176,7 @@ impl Completer for MyHelper {
         pos: usize,
         _: &rustyline::Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Pair>)> {
-        if line.trim().is_empty() {
-            return Ok((0, Vec::new()));
-        }
-
-        let tokens = parse_args(line.trim());
-
-        let (prev2, prev1, target) = triplet(line, pos, &tokens);
-
-        let Some(target_str) = target else {
-            return Ok((0, Vec::new()));
-        };
-
-        let Some(prev1_str) = prev1 else {
-            return self.complete_commands(
-                line,
-                pos,
-                &target_str,
-                self.regular_complete_candidates(),
-                false,
-            );
-        };
-
-        let state = self.state.borrow();
-        if let Some(completion_path) = state.completion_script_for(&prev1_str) {
-            return self.complete_commands(
-                line,
-                pos,
-                &target_str,
-                self.custom_complete_candidates(
-                    completion_path,
-                    &prev1_str,
-                    &target_str,
-                    "",
-                    line,
-                    pos,
-                ),
-                true,
-            );
-        }
-
-        if let Some(prev2_str) = prev2
-            && let Some(completion_path) = state.completion_script_for(&prev2_str)
-        {
-            return self.complete_commands(
-                line,
-                pos,
-                &target_str,
-                self.custom_complete_candidates(
-                    completion_path,
-                    &prev2_str,
-                    &target_str,
-                    &prev1_str,
-                    line,
-                    pos,
-                ),
-                true,
-            );
-        }
-        self.complete_files(line, pos)
+        self.complete_inner(line, pos)
     }
 }
 
@@ -191,3 +195,7 @@ fn triplet(
 
     (third, second, first)
 }
+
+#[cfg(test)]
+#[path = "tests/my_helper_tests.rs"]
+mod tests;
