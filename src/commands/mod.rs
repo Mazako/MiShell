@@ -1,4 +1,5 @@
 mod cd;
+mod complete;
 mod echo;
 mod exec;
 mod exit;
@@ -6,7 +7,6 @@ mod pwd;
 mod tokenizer;
 mod type_cmd;
 mod unknown;
-mod complete;
 
 use crate::command::{Command, Token};
 use crate::commands::exec::Exec;

@@ -47,7 +47,9 @@ pub fn parse_args(args: &str) -> Vec<Token> {
                 if ch == '"' {
                     quote_mode = ParseMode::Normal;
                 } else if ch == '\\' {
-                    if let Some(&next) = chars.peek() && matches!(next, '"' | '\\' | '$' | '`' | '\n') {
+                    if let Some(&next) = chars.peek()
+                        && matches!(next, '"' | '\\' | '$' | '`' | '\n')
+                    {
                         current_token_escaped = true;
                         current_token.push(chars.next().unwrap());
                     } else {

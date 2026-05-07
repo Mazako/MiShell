@@ -99,16 +99,22 @@ impl Command for Complete {
                         let script_path = path.display().to_string();
                         self.print(Some(&format!("complete -C '{script_path}' {cmd}")), None);
                     } else {
-                        self.print(None, Some(&format!("complete: {cmd}: no completion specification")));
+                        self.print(
+                            None,
+                            Some(&format!("complete: {cmd}: no completion specification")),
+                        );
                     }
                     return;
                 }
                 if let Some(cmd) = parsed.flags.get("-C") {
-                    if let Some(target) = parsed.target {
-                        ctx.add_completion_script(target.as_str(), PathBuf::from(cmd));
+                    if let Some(target) = &parsed.target {
+                        ctx.add_completion_script(target, PathBuf::from(cmd));
                     } else {
                         self.print(None, Some(&format!("complete: {cmd}: no target specified")));
                     }
+                }
+                if let Some(cmd) = parsed.flags.get("-r") {
+                    ctx.remove_completion_script(cmd);
                 }
             }
             Err(e) => self.print(None, Some(&format!("{e}"))),
@@ -151,10 +157,7 @@ mod tests {
 
     #[test]
     fn pairs_only_no_target_ok() {
-        let c = Complete::new(vec![
-            Token::Word("-C".into()),
-            Token::Word("/bin/c".into()),
-        ]);
+        let c = Complete::new(vec![Token::Word("-C".into()), Token::Word("/bin/c".into())]);
         let p = c.parse().unwrap();
         assert_eq!(p.flags.get("-C").map(String::as_str), Some("/bin/c"));
         assert_eq!(p.target, None);

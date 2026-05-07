@@ -43,6 +43,9 @@ impl ShellState {
         self.completions_scripts.get(command)
     }
 
+    pub fn remove_completion_script(&mut self, command: &str) {
+        self.completions_scripts.remove(command);
+    }
 }
 
 pub fn is_executable(metadata: Metadata) -> bool {
