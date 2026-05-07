@@ -1,6 +1,4 @@
-use std::{
-    cell::RefCell, path::PathBuf, process::Command, rc::Rc
-};
+use std::{cell::RefCell, path::PathBuf, process::Command, rc::Rc};
 
 use rustyline::{
     Helper, Highlighter, Hinter, Validator,
@@ -16,7 +14,6 @@ pub struct MyHelper {
 }
 
 impl MyHelper {
-
     fn complete_files(&self, line: &str, pos: usize) -> rustyline::Result<(usize, Vec<Pair>)> {
         if let Ok((start, pairs)) = FilenameCompleter::new().complete_path(line, pos) {
             let matches = pairs
@@ -39,12 +36,21 @@ impl MyHelper {
         }
     }
 
-    fn custom_complete_candidates(&self, path: &PathBuf) -> Vec<String> {
-        let program = Command::new(path).output();
+    fn custom_complete_candidates(
+        &self,
+        path: &PathBuf,
+        command: &str,
+        word: &str,
+        prev_word: &str,
+    ) -> Vec<String> {
+        let program = Command::new(path)
+            .args(vec![command, word, prev_word])
+            .output();
         if let Ok(output) = program {
-            return String::from_utf8_lossy(&output.stdout).lines()
-            .map(|f| f.trim().to_string())
-            .collect();
+            return String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .map(|f| f.trim().to_string())
+                .collect();
         }
         Vec::new()
     }
@@ -68,7 +74,7 @@ impl MyHelper {
         pos: usize,
         word: &str,
         candidates: Vec<String>,
-        allow_empty: bool
+        allow_empty: bool,
     ) -> rustyline::Result<(usize, Vec<Pair>)> {
         let start = line.rmatch_indices(word).next().unwrap().0;
         let prefix = line[start..pos].to_lowercase();
@@ -106,43 +112,65 @@ impl Completer for MyHelper {
 
         let tokens = parse_args(line.trim());
 
-        let (pre, target) = triplet(line, pos, &tokens);
+        let (prev2, prev1, target) = triplet(line, pos, &tokens);
 
         let Some(target_str) = target else {
             return Ok((0, Vec::new()));
         };
 
-        let Some(pre_str) = pre else {
+        let Some(prev1_str) = prev1 else {
             return self.complete_commands(
                 line,
                 pos,
                 &target_str,
                 self.regular_complete_candidates(),
-                false
+                false,
             );
         };
 
         let state = self.state.borrow();
-        if let Some(completion_path) = state.completion_script_for(&pre_str) {
+        if let Some(completion_path) = state.completion_script_for(&prev1_str) {
             return self.complete_commands(
                 line,
                 pos,
                 &target_str,
-                self.custom_complete_candidates(completion_path),
-                true
+                self.custom_complete_candidates(completion_path, &prev1_str, &target_str, ""),
+                true,
+            );
+        }
+
+        if let Some(prev2_str) = prev2
+            && let Some(completion_path) = state.completion_script_for(&prev2_str)
+        {
+            return self.complete_commands(
+                line,
+                pos,
+                &target_str,
+                self.custom_complete_candidates(
+                    completion_path,
+                    &prev2_str,
+                    &target_str,
+                    &prev1_str,
+                ),
+                true,
             );
         }
         self.complete_files(line, pos)
     }
 }
 
-fn triplet(line: &str, pos: usize, tokens: &[Token]) -> (Option<String>, Option<String>) {
+fn triplet(
+    line: &str,
+    pos: usize,
+    tokens: &[Token],
+) -> (Option<String>, Option<String>, Option<String>) {
     let mut words: Vec<String> = tokens.iter().flat_map(|t| t.to_simple_string()).collect();
     if line.get(pos.saturating_sub(1)..pos) == Some(" ") {
         words.push(String::new());
     }
-    let target = words.pop();
-    let pre = words.pop();
+    let first = words.pop();
+    let second = words.pop();
+    let third = words.pop();
 
-    (pre, target)
+    (third, second, first)
 }
