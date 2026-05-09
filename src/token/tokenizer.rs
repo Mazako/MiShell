@@ -106,7 +106,12 @@ fn double_quoted_to_str(rule: Pair<'_, Rule>) -> String {
     for ele in rule.into_inner() {
         match ele.as_rule() {
             Rule::double_quoted_regular => out.push_str(ele.as_str()),
-            Rule::escape_char => out.push_str(&sanitize_escape_char_double(ele.as_str())),
+            Rule::double_quoted_escape_interpreted => {
+                if ele.as_str() != "\\\n" {
+                    out.push_str(sanitize_escape_char(ele.as_str()))
+                }
+            }
+            Rule::double_quoted_escape_literal => out.push_str(ele.as_str()),
             _ => {}
         }
     }
@@ -117,19 +122,3 @@ fn sanitize_escape_char(input: &str) -> &str {
     &input[1..]
 }
 
-fn sanitize_escape_char_double(input: &str) -> String {
-    let mut chars = input.chars();
-    let _slash = chars.next();
-    let Some(next) = chars.next() else {
-        return "\\".to_string();
-    };
-    match next {
-        '"' | '\\' | '$' | '`' => next.to_string(),
-        '\n' => String::new(),
-        _ => {
-            let mut out = String::from("\\");
-            out.push(next);
-            out
-        }
-    }
-}
