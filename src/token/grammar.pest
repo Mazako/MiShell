@@ -13,6 +13,8 @@ SPECIAL_CHARS = {
   | ">>"
   | "2>>"
   | "1>>"
+  | "|"
+  | "&"
 }
 
 regular_part       = @{ (!WHITESPACE ~ !"'" ~ !SPECIAL_CHARS ~ ANY)+ }
@@ -38,6 +40,6 @@ override_sterr  = { "2>>" ~ segment }
 
 redirect = { write_stdout | write_stderr | override_stdout | override_sterr }
 
-background = @{ "&" }
+background = { "&" }
 
 line = { SOI ~ command ~ arg* ~ redirect* ~ background* ~ EOI }

@@ -1,7 +1,7 @@
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
-use std::process::Stdio;
+use std::process::{Child, Stdio};
 
 use crate::command_type::CommandType;
 use crate::shell_state::ShellState;
@@ -17,6 +17,15 @@ pub trait Command {
     fn input(&self) -> Input;
 
     fn execute(&self, ctx: &mut ShellState);
+
+    fn execute_background(&self) -> Child {
+        let input = &self.input();
+        let curr_exe = std::env::current_exe().unwrap();
+        std::process::Command::new(curr_exe)
+            .args(&input.args)
+            .spawn()
+            .unwrap()
+    }
 
     fn args(&self) -> Vec<String> {
         self.input().args

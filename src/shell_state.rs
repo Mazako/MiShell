@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     fs::{self, Metadata},
     os::unix::fs::PermissionsExt,
-    path::PathBuf,
+    path::PathBuf, process::Child,
 };
 
 pub struct ShellState {
@@ -10,6 +10,8 @@ pub struct ShellState {
     pub cwd: PathBuf,
     path_commands: HashMap<String, PathBuf>,
     completions_scripts: HashMap<String, PathBuf>,
+    background_processes: HashMap<u32, Child>,
+    id_generator: u32
 }
 
 impl ShellState {
@@ -24,6 +26,8 @@ impl ShellState {
             cwd,
             path_commands,
             completions_scripts: HashMap::new(),
+            background_processes: HashMap::new(),
+            id_generator: 1
         }
     }
 
@@ -45,6 +49,14 @@ impl ShellState {
 
     pub fn remove_completion_script(&mut self, command: &str) {
         self.completions_scripts.remove(command);
+    }
+
+    pub fn add_child(&mut self, child: Child) -> (u32, u32) {
+        let pid = child.id();
+        let id = self.id_generator;
+        self.background_processes.insert(id, child);
+        self.id_generator += 1;
+        (id, pid)
     }
 }
 

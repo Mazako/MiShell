@@ -38,6 +38,7 @@ pub struct Input {
     pub command: String,
     pub args: Vec<String>,
     pub redirect: Option<InputRedirect>,
+    pub background: bool
 }
 
 impl Input {

@@ -5,7 +5,7 @@ mod my_helper;
 mod shell_state;
 mod token;
 
-use std::{cell::RefCell, rc::Rc};
+use std::{alloc::System, cell::RefCell, env::args, os::unix::process, process::exit, rc::Rc};
 
 use anyhow::Error;
 use commands::command_from_input;
@@ -16,6 +16,17 @@ use crate::shell_state::ShellState;
 
 fn main() -> Result<(), Error> {
     let state = Rc::new(RefCell::new(ShellState::new()));
+
+    let args: Vec<String> = args().collect();
+
+    if args.len() > 1 {
+        let input = args[1..].join(" ");
+        let mut s = state.borrow_mut();
+        let command = command_from_input(input.trim(), &s);
+        command.execute(&mut s);
+        exit(0)
+    }
+
     let cfg = Config::builder()
         .completion_type(CompletionType::List)
         .bell_style(BellStyle::Audible)
@@ -36,6 +47,13 @@ fn main() -> Result<(), Error> {
         let input = rl.readline("$ ")?;
         let mut state = state.borrow_mut();
         let command = command_from_input(input.trim(), &state);
-        command.execute(&mut state);
+        if command.input().background  {
+            let child = command.execute_background();
+            let (id, pid) = state.add_child(child);
+            println!("[{id}] {pid}")
+
+        } else {
+            command.execute(&mut state);
+        }
     }
 }
