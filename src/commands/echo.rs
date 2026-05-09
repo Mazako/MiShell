@@ -1,14 +1,15 @@
-use crate::command::{Command, Token};
+use crate::command::Command;
 use crate::command_type::CommandType;
 use crate::shell_state::ShellState;
+use crate::token::Input;
 
 pub struct Echo {
-    pub(super) tokens: Vec<Token>,
+    pub(super) input: Input,
 }
 
 impl Echo {
-    pub(super) fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens }
+    pub(super) fn new(input: Input) -> Self {
+        Self { input }
     }
 }
 
@@ -17,8 +18,8 @@ impl Command for Echo {
         self.print(Some(&self.args().join(" ")), None);
     }
 
-    fn tokens(&self) -> Vec<Token> {
-        self.tokens.clone()
+    fn input(&self) -> Input {
+        self.input.clone()
     }
 
     fn command_type(&self) -> CommandType {

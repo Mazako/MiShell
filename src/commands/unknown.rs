@@ -1,25 +1,28 @@
-use crate::command::{Command, Token};
+use crate::command::Command;
 use crate::command_type::CommandType;
 use crate::shell_state::ShellState;
+use crate::token::Input;
 
 pub struct UnknownCommand {
-    pub(super) command: String,
-    pub(super) tokens: Vec<Token>,
+    pub(super) input: Input,
 }
 
 impl UnknownCommand {
-    pub(super) fn new(command: String, tokens: Vec<Token>) -> Self {
-        Self { command, tokens }
+    pub(super) fn new(input: Input) -> Self {
+        Self { input }
     }
 }
 
 impl Command for UnknownCommand {
     fn execute(&self, _ctx: &mut ShellState) {
-        self.print(None, Some(&format!("{}: command not found", self.command)));
+        self.print(
+            None,
+            Some(&format!("{}: command not found", self.input.command)),
+        );
     }
 
-    fn tokens(&self) -> Vec<Token> {
-        self.tokens.clone()
+    fn input(&self) -> Input {
+        self.input.clone()
     }
 
     fn command_type(&self) -> CommandType {
@@ -27,6 +30,6 @@ impl Command for UnknownCommand {
     }
 
     fn name(&self) -> &str {
-        &self.command
+        &self.input.command
     }
 }

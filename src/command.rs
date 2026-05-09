@@ -5,92 +5,41 @@ use std::process::Stdio;
 
 use crate::command_type::CommandType;
 use crate::shell_state::ShellState;
+use crate::token::{Input, InputRedirect, RedirectTarget};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StreamTarget {
     Inherit,
-    Redirect(Redirect),
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Redirect {
-    pub path: PathBuf,
-    pub append: bool,
-}
-
-impl Redirect {
-    pub fn open_write(&self) -> File {
-        let mut opts = OpenOptions::new();
-        opts.create(true).write(true);
-        if self.append {
-            opts.append(true);
-        } else {
-            opts.truncate(true);
-        }
-        opts.open(&self.path).unwrap()
-    }
-
-    pub fn touch(&self) {
-        let _ = self.open_write();
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Token {
-    Word(String),
-    RedirectStdout { path: String, append: bool },
-    RedirectStderr { path: String, append: bool },
-}
-
-impl Token {
-    pub fn to_simple_string(&self) -> Vec<String> {
-        match &self {
-            Token::Word(w) => vec![w.clone()],
-            Token::RedirectStdout { path, append: _ } => vec![">".to_string(), path.clone()],
-            Token::RedirectStderr { path, append: _ } => vec![">".to_string(), path.clone()],
-        }
-    }
+    Redirect(InputRedirect),
 }
 
 pub trait Command {
+    fn input(&self) -> Input;
+
     fn execute(&self, ctx: &mut ShellState);
 
-    fn tokens(&self) -> Vec<Token>;
-
     fn args(&self) -> Vec<String> {
-        self.tokens()
-            .into_iter()
-            .filter_map(|token| match token {
-                Token::Word(word) => Some(word),
-                _ => None,
-            })
-            .collect()
+        self.input().args
     }
 
     fn stdout(&self) -> StreamTarget {
-        self.tokens()
-            .into_iter()
-            .find_map(|token| match token {
-                Token::RedirectStdout { path, append } => Some(StreamTarget::Redirect(Redirect {
-                    path: PathBuf::from(path),
-                    append,
-                })),
-                _ => None,
-            })
-            .unwrap_or(StreamTarget::Inherit)
+        if let Some(red) = self.input().redirect
+            && red.target == RedirectTarget::Stdout
+        {
+            StreamTarget::Redirect(red)
+        } else {
+            StreamTarget::Inherit
+        }
     }
 
     fn stderr(&self) -> StreamTarget {
-        self.tokens()
-            .into_iter()
-            .find_map(|token| match token {
-                Token::RedirectStderr { path, append } => Some(StreamTarget::Redirect(Redirect {
-                    path: PathBuf::from(path),
-                    append,
-                })),
-                _ => None,
-            })
-            .unwrap_or(StreamTarget::Inherit)
+        if let Some(red) = self.input().redirect
+            && red.target == RedirectTarget::Stderr
+        {
+            StreamTarget::Redirect(red)
+        } else {
+            StreamTarget::Inherit
+        }
     }
 
     fn print(&self, stdout: Option<&str>, stderr: Option<&str>) {

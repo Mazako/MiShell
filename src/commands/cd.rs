@@ -5,18 +5,19 @@ use std::{
 };
 
 use crate::{
-    command::{Command, Token},
+    command::Command,
     command_type::CommandType,
     shell_state::{ShellState, is_executable},
+    token::Input,
 };
 
 pub struct Cd {
-    tokens: Vec<Token>,
+    input: Input,
 }
 
 impl Cd {
-    pub(super) fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens }
+    pub(super) fn new(input: Input) -> Self {
+        Self { input }
     }
 
     fn resolve_target(raw: PathBuf, cwd: &Path) -> Result<PathBuf, String> {
@@ -73,8 +74,8 @@ impl Command for Cd {
         }
     }
 
-    fn tokens(&self) -> Vec<Token> {
-        self.tokens.clone()
+    fn input(&self) -> Input {
+        self.input.clone()
     }
 
     fn command_type(&self) -> CommandType {

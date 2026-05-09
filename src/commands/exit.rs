@@ -1,14 +1,15 @@
-use crate::command::{Command, Token};
+use crate::command::Command;
 use crate::command_type::CommandType;
 use crate::shell_state::ShellState;
+use crate::token::Input;
 
 pub struct Exit {
-    tokens: Vec<Token>,
+    input: Input,
 }
 
 impl Exit {
-    pub(super) fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens }
+    pub(super) fn new(input: Input) -> Self {
+        Self { input }
     }
 }
 
@@ -18,8 +19,8 @@ impl Command for Exit {
         std::process::exit(0);
     }
 
-    fn tokens(&self) -> Vec<Token> {
-        self.tokens.clone()
+    fn input(&self) -> Input {
+        self.input.clone()
     }
 
     fn command_type(&self) -> CommandType {

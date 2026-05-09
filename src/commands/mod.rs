@@ -4,53 +4,42 @@ mod echo;
 mod exec;
 mod exit;
 mod pwd;
-mod tokenizer;
 mod type_cmd;
 mod unknown;
+mod jobs;
 
-use crate::command::{Command, Token};
+use crate::command::Command;
 use crate::commands::exec::Exec;
+use crate::commands::jobs::Jobs;
 use crate::commands::pwd::Pwd;
 use crate::shell_state::ShellState;
+use crate::token::parse_input;
 
 pub use cd::Cd;
 pub use echo::Echo;
 pub use exit::Exit;
-pub use tokenizer::parse_args;
 pub use type_cmd::Type;
 pub use unknown::UnknownCommand;
 
 use crate::commands::complete::Complete;
 
 pub fn command_from_input(input: &str, ctx: &ShellState) -> Box<dyn Command> {
-    let parsed_tokens = parse_args(input);
-    let mut command = String::new();
-    let mut args: Vec<Token> = Vec::new();
-    let mut saw_command: bool = false;
+    let input = parse_input(input);
+    let command = input.command.as_str();
 
-    for token in parsed_tokens {
-        if !saw_command {
-            if let Token::Word(word) = token {
-                command = word;
-                saw_command = true;
-            }
-            continue;
-        }
-        args.push(token);
-    }
-
-    match command.as_str() {
-        "echo" => Box::new(Echo::new(args)),
-        "exit" => Box::new(Exit::new(args)),
-        "type" => Box::new(Type::new(args)),
-        "pwd" => Box::new(Pwd::new(args)),
-        "cd" => Box::new(Cd::new(args)),
-        "complete" => Box::new(Complete::new(args)),
+    match command {
+        "echo" => Box::new(Echo::new(input)),
+        "exit" => Box::new(Exit::new(input)),
+        "type" => Box::new(Type::new(input)),
+        "pwd" => Box::new(Pwd::new(input)),
+        "cd" => Box::new(Cd::new(input)),
+        "complete" => Box::new(Complete::new(input)),
+        "jobs" => Box::new(Jobs::new(input)),
         _ => {
-            if let Some(path) = ctx.find_in_path(&command) {
-                Box::new(Exec::new(command.to_string(), path, args))
+            if let Some(path) = ctx.find_in_path(command) {
+                Box::new(Exec::new(input, path))
             } else {
-                Box::new(UnknownCommand::new(command.to_string(), args))
+                Box::new(UnknownCommand::new(input))
             }
         }
     }

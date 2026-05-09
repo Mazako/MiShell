@@ -3,6 +3,7 @@ mod command_type;
 mod commands;
 mod my_helper;
 mod shell_state;
+mod token;
 
 use std::{cell::RefCell, rc::Rc};
 

@@ -1,0 +1,39 @@
+WHITESPACE = _{ " " | "\t" }
+
+SPECIAL_CHARS = {
+    "$"
+  | "\""
+  | "'"
+  | "@"
+  | "\\"
+  | ">"
+  | "<"
+  | "2>"
+  | "1>"
+  | ">>"
+  | "2>>"
+  | "1>>"
+}
+
+regular_part       = @{ (!WHITESPACE ~ !"'" ~ !SPECIAL_CHARS ~ ANY)+ }
+escape_char        = @{ "\\" ~ ANY }
+word               =  ${ (regular_part | escape_char)+ }
+quoted_part        = @{ "'" ~ (!"'" ~ ANY)* ~ "'" }
+double_quoted_regular = @{ (!"\"" ~ !"\\" ~ ANY)+ }
+double_quoted_part = ${ "\"" ~ (double_quoted_regular | escape_char)* ~ "\"" }
+
+segment = { word | quoted_part | double_quoted_part }
+
+arg     = ${ segment+ }
+command =  { segment }
+
+write_stdout    = { (">" | "1>") ~ segment }
+write_stderr    = { "2>" ~ segment }
+override_stdout = { (">>" | "1>>") ~ segment }
+override_sterr  = { "2>>" ~ segment }
+
+redirect = { write_stdout | write_stderr | override_stdout | override_sterr }
+
+background = @{ "&" }
+
+line = { SOI ~ command ~ arg* ~ redirect* ~ background* ~ EOI }

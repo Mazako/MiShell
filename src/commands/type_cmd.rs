@@ -1,14 +1,15 @@
-use crate::command::{Command, Token};
+use crate::command::Command;
 use crate::command_type::CommandType;
 use crate::shell_state::ShellState;
+use crate::token::Input;
 
 pub struct Type {
-    pub(super) tokens: Vec<Token>,
+    pub(super) input: Input,
 }
 
 impl Type {
-    pub(super) fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens }
+    pub(super) fn new(input: Input) -> Self {
+        Self { input }
     }
 }
 
@@ -30,8 +31,8 @@ impl Command for Type {
         self.print(Some(&line), None);
     }
 
-    fn tokens(&self) -> Vec<Token> {
-        self.tokens.clone()
+    fn input(&self) -> Input {
+        self.input.clone()
     }
 
     fn command_type(&self) -> CommandType {

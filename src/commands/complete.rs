@@ -2,11 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use thiserror::Error;
 
-use crate::{
-    command::{Command, Token},
-    command_type::CommandType,
-    shell_state::ShellState,
-};
+use crate::{command::Command, command_type::CommandType, shell_state::ShellState, token::Input};
 
 #[derive(Debug, Default, Clone)]
 pub(super) struct ParsedComplete {
@@ -29,16 +25,16 @@ pub(super) enum CompleteParseError {
 }
 
 pub(super) struct Complete {
-    tokens: Vec<Token>,
+    input: Input,
 }
 
 impl Complete {
-    pub(super) fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens }
+    pub(super) fn new(input: Input) -> Self {
+        Self { input }
     }
 
     fn parse(&self) -> Result<ParsedComplete, CompleteParseError> {
-        let words = collect_words(&self.tokens)?;
+        let words = self.input.args.clone();
         let mut flags = HashMap::new();
         let mut target: Option<String> = None;
         let mut iter = words.into_iter().peekable();
@@ -68,16 +64,6 @@ impl Complete {
 
 fn is_flag_like(word: &str) -> bool {
     word.starts_with('-') && word != "-"
-}
-
-fn collect_words(tokens: &[Token]) -> Result<Vec<String>, CompleteParseError> {
-    let mut words = Vec::new();
-    for token in tokens {
-        if let Token::Word(w) = token {
-            words.push(w.clone());
-        }
-    }
-    Ok(words)
 }
 
 fn validate_flag(flag: &str) -> Result<(), CompleteParseError> {
@@ -121,8 +107,8 @@ impl Command for Complete {
         }
     }
 
-    fn tokens(&self) -> Vec<Token> {
-        self.tokens.clone()
+    fn input(&self) -> Input {
+        self.input.clone()
     }
 
     fn command_type(&self) -> CommandType {
@@ -137,11 +123,19 @@ impl Command for Complete {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command::Token;
+    use crate::token::Input;
+
+    fn input(words: &[&str]) -> Input {
+        Input {
+            command: "complete".to_string(),
+            args: words.iter().map(|w| w.to_string()).collect(),
+            redirect: None,
+        }
+    }
 
     #[test]
     fn empty_ok() {
-        let c = Complete::new(vec![]);
+        let c = Complete::new(input(&[]));
         let p = c.parse().unwrap();
         assert!(p.flags.is_empty());
         assert_eq!(p.target, None);
@@ -149,7 +143,7 @@ mod tests {
 
     #[test]
     fn only_target_ok() {
-        let c = Complete::new(vec![Token::Word("git".into())]);
+        let c = Complete::new(input(&["git"]));
         let p = c.parse().unwrap();
         assert!(p.flags.is_empty());
         assert_eq!(p.target.as_deref(), Some("git"));
@@ -157,7 +151,7 @@ mod tests {
 
     #[test]
     fn pairs_only_no_target_ok() {
-        let c = Complete::new(vec![Token::Word("-C".into()), Token::Word("/bin/c".into())]);
+        let c = Complete::new(input(&["-C", "/bin/c"]));
         let p = c.parse().unwrap();
         assert_eq!(p.flags.get("-C").map(String::as_str), Some("/bin/c"));
         assert_eq!(p.target, None);
@@ -165,13 +159,7 @@ mod tests {
 
     #[test]
     fn two_flags_and_target_ok() {
-        let c = Complete::new(vec![
-            Token::Word("-C".into()),
-            Token::Word("/bin/c".into()),
-            Token::Word("-o".into()),
-            Token::Word("default".into()),
-            Token::Word("git".into()),
-        ]);
+        let c = Complete::new(input(&["-C", "/bin/c", "-o", "default", "git"]));
         let p = c.parse().unwrap();
         assert_eq!(p.flags.get("-C").map(String::as_str), Some("/bin/c"));
         assert_eq!(p.flags.get("-o").map(String::as_str), Some("default"));
@@ -180,7 +168,7 @@ mod tests {
 
     #[test]
     fn lone_flag_err() {
-        let c = Complete::new(vec![Token::Word("-C".into())]);
+        let c = Complete::new(input(&["-C"]));
         assert!(matches!(
             c.parse(),
             Err(CompleteParseError::FlagWithoutValue(_))
@@ -189,11 +177,7 @@ mod tests {
 
     #[test]
     fn value_looks_like_flag_err() {
-        let c = Complete::new(vec![
-            Token::Word("-C".into()),
-            Token::Word("-nope".into()),
-            Token::Word("git".into()),
-        ]);
+        let c = Complete::new(input(&["-C", "-nope", "git"]));
         assert!(matches!(
             c.parse(),
             Err(CompleteParseError::ValueLooksLikeFlag { .. })
@@ -202,12 +186,7 @@ mod tests {
 
     #[test]
     fn stray_words_after_pairs_err() {
-        let c = Complete::new(vec![
-            Token::Word("-C".into()),
-            Token::Word("/bin/c".into()),
-            Token::Word("a".into()),
-            Token::Word("b".into()),
-        ]);
+        let c = Complete::new(input(&["-C", "/bin/c", "a", "b"]));
         assert!(matches!(c.parse(), Err(CompleteParseError::TrailingWords)));
     }
 }

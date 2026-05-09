@@ -5,7 +5,7 @@ use rustyline::{
     completion::{Completer, FilenameCompleter, Pair},
 };
 
-use crate::{command::Token, commands::parse_args, shell_state::ShellState};
+use crate::{shell_state::ShellState, token::{Input, parse_input}};
 
 #[derive(Helper, Highlighter, Hinter, Validator)]
 pub struct MyHelper {
@@ -19,9 +19,9 @@ impl MyHelper {
             return Ok((0, Vec::new()));
         }
 
-        let tokens = parse_args(line.trim());
+        let tokens = parse_input(line.trim());
 
-        let (prev2, prev1, target) = triplet(line, pos, &tokens);
+        let (target, prev1, prev2) = triplet(line, pos, &tokens);
 
         let Some(target_str) = target else {
             return Ok((0, Vec::new()));
@@ -31,23 +31,23 @@ impl MyHelper {
             return self.complete_commands(
                 line,
                 pos,
-                &target_str,
+                target_str,
                 self.regular_complete_candidates(),
                 false,
             );
         };
 
         let state = self.state.borrow();
-        if let Some(completion_path) = state.completion_script_for(&prev1_str) {
+        if let Some(completion_path) = state.completion_script_for(prev1_str) {
             return self.complete_commands(
                 line,
                 pos,
-                &target_str,
+                target_str,
                 self.custom_complete_candidates(
                     completion_path,
-                    &prev1_str,
-                    &target_str,
-                    &prev1_str,
+                    prev1_str,
+                    target_str,
+                    prev1_str,
                     line,
                     pos,
                 ),
@@ -56,17 +56,17 @@ impl MyHelper {
         }
 
         if let Some(prev2_str) = prev2
-            && let Some(completion_path) = state.completion_script_for(&prev2_str)
+            && let Some(completion_path) = state.completion_script_for(prev2_str)
         {
             return self.complete_commands(
                 line,
                 pos,
-                &target_str,
+                target_str,
                 self.custom_complete_candidates(
                     completion_path,
-                    &prev2_str,
-                    &target_str,
-                    &prev1_str,
+                    prev2_str,
+                    target_str,
+                    prev1_str,
                     line,
                     pos,
                 ),
@@ -180,20 +180,17 @@ impl Completer for MyHelper {
     }
 }
 
-fn triplet(
-    line: &str,
+fn triplet<'a>(
+    line: &'a str,
     pos: usize,
-    tokens: &[Token],
-) -> (Option<String>, Option<String>, Option<String>) {
-    let mut words: Vec<String> = tokens.iter().flat_map(|t| t.to_simple_string()).collect();
+    input: &'a Input,
+) -> (Option<&'a str>, Option<&'a str>, Option<&'a str>) {
+    let (first, second, third) = input.last_three_elements();
     if line.get(pos.saturating_sub(1)..pos) == Some(" ") {
-        words.push(String::new());
+        return (Some(""), Some(first), second);
     }
-    let first = words.pop();
-    let second = words.pop();
-    let third = words.pop();
 
-    (third, second, first)
+    (Some(first), second, third)
 }
 
 #[cfg(test)]
