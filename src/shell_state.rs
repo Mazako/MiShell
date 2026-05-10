@@ -69,7 +69,7 @@ impl ShellState {
             cwd,
             path_commands,
             completions_scripts: HashMap::new(),
-     c       background_processes: IndexMap::new(),
+            background_processes: IndexMap::new(),
             available_ids: BinaryHeap::new(),
             id_generator: 1,
         }
