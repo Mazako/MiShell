@@ -72,7 +72,7 @@ impl ShellState {
             } else if i == len - 2 {
                 line.push_str("- ");
             } else {
-                line.push(' ');
+                line.push_str("  ");
             }
             let status_str = match child.try_wait() {
                 Ok(Some(_)) => format!("{:24}", "Done"),
