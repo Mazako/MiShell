@@ -18,6 +18,7 @@ impl Command for Jobs {
     }
 
     fn execute(&self, ctx: &mut ShellState) {
+        ctx.print_background_jobs();
     }
 
     fn command_type(&self) -> CommandType {
