@@ -5,7 +5,7 @@ mod my_helper;
 mod shell_state;
 mod token;
 
-use std::{alloc::System, cell::RefCell, env::args, os::unix::process, process::exit, rc::Rc};
+use std::{cell::RefCell, env::args, process::exit, rc::Rc};
 
 use anyhow::Error;
 use commands::command_from_input;
@@ -44,15 +44,18 @@ fn main() -> Result<(), Error> {
     };
     rl.set_helper(Some(helper));
     loop {
+        let mut state_mut = state.borrow_mut();
+        state_mut.print_and_reap(true);
+        drop(state_mut);
         let input = rl.readline("$ ")?;
-        let mut state = state.borrow_mut();
-        let command = command_from_input(input.trim(), &state);
+        let mut state_mut = state.borrow_mut();
+        let command = command_from_input(input.trim(), &state_mut);
         if command.input().background {
             let child = command.execute_background();
-            let (id, pid) = state.add_child(child, &input);
+            let (id, pid) = state_mut.add_child(child, &input);
             println!("[{id}] {pid}")
         } else {
-            command.execute(&mut state);
+            command.execute(&mut state_mut);
         }
     }
 }

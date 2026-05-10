@@ -1,12 +1,56 @@
 use std::{
     collections::HashMap,
     fs::{self, Metadata},
+    io,
     os::unix::fs::PermissionsExt,
     path::PathBuf,
-    process::Child,
+    process::{Child, ExitStatus},
 };
 
 use indexmap::IndexMap;
+
+const JOB_STATUS_WIDTH: usize = 21;
+
+enum JobWaitOutcome {
+    Show { status: &'static str, reap: bool },
+    Skip,
+}
+
+fn interpret_job_wait(result: io::Result<Option<ExitStatus>>, done_only: bool) -> JobWaitOutcome {
+    match result {
+        Ok(Some(_)) => JobWaitOutcome::Show {
+            status: "Done",
+            reap: true,
+        },
+        Ok(None) if done_only => JobWaitOutcome::Skip,
+        Ok(None) => JobWaitOutcome::Show {
+            status: "Running",
+            reap: false,
+        },
+        Err(_) if done_only => JobWaitOutcome::Skip,
+        Err(_) => JobWaitOutcome::Show {
+            status: "",
+            reap: false,
+        },
+    }
+}
+
+fn job_list_marker(index: usize, total: usize) -> &'static str {
+    if index + 1 == total {
+        "+  "
+    } else if index + 2 == total {
+        "-  "
+    } else {
+        "  "
+    }
+}
+
+fn format_job_row(id: u32, marker: &str, status: &str, command: &str) -> String {
+    format!(
+        "[{id}]{marker}{status:<w$}{command}",
+        w = JOB_STATUS_WIDTH
+    )
+}
 
 pub struct ShellState {
     pub path_dirs: Vec<PathBuf>,
@@ -74,34 +118,25 @@ impl ShellState {
         });
     }
 
-    pub fn print_background_jobs(&mut self) {
-        let mut lines: Vec<String> = Vec::new();
-        let len = self.background_processes.len();
-        let mut done_ids: Vec<u32> = Vec::new();
-        for (i, (id, (child, path))) in self.background_processes.iter_mut().enumerate() {
-            let mut line = String::new();
-            line.push_str(&format!("[{id}]"));
-            if i == len - 1 {
-                line.push_str("+  ");
-            } else if i == len - 2 {
-                line.push_str("-  ");
-            } else {
-                line.push_str("  ");
-            }
-            let status_str = match child.try_wait() {
-                Ok(Some(_)) => {
-                    done_ids.push(*id);
-                    format!("{:21}", "Done")
-                }
-                Ok(None) => format!("{:21}", "Running"),
-                Err(_) => "".to_string(),
+    pub fn print_and_reap(&mut self, done_only: bool) {
+        let total = self.background_processes.len();
+        let mut done_ids = Vec::new();
+        let mut lines = Vec::new();
+
+        for (i, (id, (child, command))) in self.background_processes.iter_mut().enumerate() {
+            let JobWaitOutcome::Show { status, reap } =
+                interpret_job_wait(child.try_wait(), done_only)
+            else {
+                continue;
             };
-            line.push_str(&status_str);
-            line.push_str(path);
-            lines.push(line);
+            if reap {
+                done_ids.push(*id);
+            }
+            lines.push(format_job_row(*id, job_list_marker(i, total), status, command));
         }
-        for ele in lines {
-            println!("{ele}");
+
+        for line in lines {
+            println!("{line}");
         }
         self.remove_childs(&done_ids);
     }
