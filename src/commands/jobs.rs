@@ -1,14 +1,12 @@
 use crate::{command::Command, command_type::CommandType, shell_state::ShellState, token::Input};
 
 pub struct Jobs {
-    input: Input
+    input: Input,
 }
 
 impl Jobs {
     pub fn new(input: Input) -> Self {
-        Jobs {
-            input
-        }
+        Jobs { input }
     }
 }
 

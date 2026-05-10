@@ -2,7 +2,8 @@ use std::{
     collections::HashMap,
     fs::{self, Metadata},
     os::unix::fs::PermissionsExt,
-    path::PathBuf, process::Child,
+    path::PathBuf,
+    process::Child,
 };
 
 use indexmap::IndexMap;
@@ -13,7 +14,7 @@ pub struct ShellState {
     path_commands: HashMap<String, PathBuf>,
     completions_scripts: HashMap<String, PathBuf>,
     background_processes: IndexMap<u32, (Child, String)>,
-    id_generator: u32
+    id_generator: u32,
 }
 
 impl ShellState {
@@ -29,7 +30,7 @@ impl ShellState {
             path_commands,
             completions_scripts: HashMap::new(),
             background_processes: IndexMap::new(),
-            id_generator: 1
+            id_generator: 1,
         }
     }
 
@@ -56,27 +57,43 @@ impl ShellState {
     pub fn add_child(&mut self, child: Child, line: &str) -> (u32, u32) {
         let pid = child.id();
         let id = self.id_generator;
-        self.background_processes.insert(id, (child, line.to_string()));
+        let cmd_line = line
+            .trim_end()
+            .trim_end_matches('&')
+            .trim_end()
+            .to_string();
+        self.background_processes
+            .insert(id, (child, cmd_line));
         self.id_generator += 1;
         (id, pid)
+    }
+
+    fn remove_childs(&mut self, ids: &[u32]) {
+        ids.iter().for_each(|id| {
+            self.background_processes.shift_remove(id);
+        });
     }
 
     pub fn print_background_jobs(&mut self) {
         let mut lines: Vec<String> = Vec::new();
         let len = self.background_processes.len();
+        let mut done_ids: Vec<u32> = Vec::new();
         for (i, (id, (child, path))) in self.background_processes.iter_mut().enumerate() {
             let mut line = String::new();
             line.push_str(&format!("[{id}]"));
             if i == len - 1 {
-                line.push_str("+ ");
+                line.push_str("+  ");
             } else if i == len - 2 {
-                line.push_str("- ");
+                line.push_str("-  ");
             } else {
                 line.push_str("  ");
             }
             let status_str = match child.try_wait() {
-                Ok(Some(_)) => format!("{:24}", "Done"),
-                Ok(None) => format!("{:24}", "Running"),
+                Ok(Some(_)) => {
+                    done_ids.push(*id);
+                    format!("{:21}", "Done")
+                }
+                Ok(None) => format!("{:21}", "Running"),
                 Err(_) => "".to_string(),
             };
             line.push_str(&status_str);
@@ -86,8 +103,8 @@ impl ShellState {
         for ele in lines {
             println!("{ele}");
         }
+        self.remove_childs(&done_ids);
     }
-
 }
 
 pub fn is_executable(metadata: Metadata) -> bool {

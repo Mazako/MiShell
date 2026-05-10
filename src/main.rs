@@ -47,11 +47,10 @@ fn main() -> Result<(), Error> {
         let input = rl.readline("$ ")?;
         let mut state = state.borrow_mut();
         let command = command_from_input(input.trim(), &state);
-        if command.input().background  {
+        if command.input().background {
             let child = command.execute_background();
             let (id, pid) = state.add_child(child, &input);
             println!("[{id}] {pid}")
-
         } else {
             command.execute(&mut state);
         }

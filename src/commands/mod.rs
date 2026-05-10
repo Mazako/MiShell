@@ -3,10 +3,10 @@ mod complete;
 mod echo;
 mod exec;
 mod exit;
+mod jobs;
 mod pwd;
 mod type_cmd;
 mod unknown;
-mod jobs;
 
 use crate::command::Command;
 use crate::commands::exec::Exec;

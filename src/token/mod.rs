@@ -38,11 +38,11 @@ pub struct Input {
     pub command: String,
     pub args: Vec<String>,
     pub redirect: Option<InputRedirect>,
-    pub background: bool
+    pub background: bool,
 }
 
 impl Input {
-    pub fn last_three_elements(&self) -> (&str, Option<&str>, Option<&str> ){
+    pub fn last_three_elements(&self) -> (&str, Option<&str>, Option<&str>) {
         let mut result = Vec::new();
         result.push(self.command.as_str());
         let args: Vec<&str> = self.args.iter().map(|f| f.as_str()).collect();

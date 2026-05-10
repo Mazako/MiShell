@@ -5,7 +5,10 @@ use rustyline::{
     completion::{Completer, FilenameCompleter, Pair},
 };
 
-use crate::{shell_state::ShellState, token::{Input, parse_input}};
+use crate::{
+    shell_state::ShellState,
+    token::{Input, parse_input},
+};
 
 #[derive(Helper, Highlighter, Hinter, Validator)]
 pub struct MyHelper {

@@ -14,7 +14,7 @@ pub fn parse_input(line: &str) -> Input {
     let mut redirect = None;
     let mut background = false;
     let root = parsed.into_iter().next().unwrap();
-    
+
     for r in root.into_inner() {
         match r.as_rule() {
             Rule::arg => args.push(arg_to_str(r)),
@@ -29,7 +29,7 @@ pub fn parse_input(line: &str) -> Input {
         command,
         args,
         redirect,
-        background
+        background,
     }
 }
 
@@ -110,10 +110,9 @@ fn double_quoted_to_str(rule: Pair<'_, Rule>) -> String {
     for ele in rule.into_inner() {
         match ele.as_rule() {
             Rule::double_quoted_regular => out.push_str(ele.as_str()),
-            Rule::double_quoted_escape_interpreted
-                if ele.as_str() != "\\\n" => {
-                    out.push_str(sanitize_escape_char(ele.as_str()))
-                }
+            Rule::double_quoted_escape_interpreted if ele.as_str() != "\\\n" => {
+                out.push_str(sanitize_escape_char(ele.as_str()))
+            }
             Rule::double_quoted_escape_literal => out.push_str(ele.as_str()),
             _ => {}
         }
@@ -124,4 +123,3 @@ fn double_quoted_to_str(rule: Pair<'_, Rule>) -> String {
 fn sanitize_escape_char(input: &str) -> &str {
     &input[1..]
 }
-
