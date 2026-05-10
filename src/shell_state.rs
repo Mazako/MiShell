@@ -1,10 +1,5 @@
 use std::{
-    collections::HashMap,
-    fs::{self, Metadata},
-    io,
-    os::unix::fs::PermissionsExt,
-    path::PathBuf,
-    process::{Child, ExitStatus},
+    cmp::Reverse, collections::{BinaryHeap, HashMap}, fs::{self, Metadata}, io, os::unix::fs::PermissionsExt, path::PathBuf, process::{Child, ExitStatus}
 };
 
 use indexmap::IndexMap;
@@ -58,6 +53,7 @@ pub struct ShellState {
     path_commands: HashMap<String, PathBuf>,
     completions_scripts: HashMap<String, PathBuf>,
     background_processes: IndexMap<u32, (Child, String)>,
+    available_ids: BinaryHeap<Reverse<u32>>,
     id_generator: u32,
 }
 
@@ -73,11 +69,22 @@ impl ShellState {
             cwd,
             path_commands,
             completions_scripts: HashMap::new(),
-            background_processes: IndexMap::new(),
+     c       background_processes: IndexMap::new(),
+            available_ids: BinaryHeap::new(),
             id_generator: 1,
         }
     }
 
+    fn background_id(&mut self) -> u32 {
+        if let Some(Reverse(id)) = self.available_ids.pop() {
+            id
+        } else {
+            let new_id = self.id_generator;
+            self.id_generator += 1;
+            new_id
+        }
+    }
+    
     pub fn find_in_path(&self, command: &str) -> Option<PathBuf> {
         self.path_commands.get(command).cloned()
     }
@@ -100,7 +107,7 @@ impl ShellState {
 
     pub fn add_child(&mut self, child: Child, line: &str) -> (u32, u32) {
         let pid = child.id();
-        let id = self.id_generator;
+        let id = self.background_id();
         let cmd_line = line
             .trim_end()
             .trim_end_matches('&')
@@ -108,12 +115,12 @@ impl ShellState {
             .to_string();
         self.background_processes
             .insert(id, (child, cmd_line));
-        self.id_generator += 1;
         (id, pid)
     }
 
     fn remove_childs(&mut self, ids: &[u32]) {
         ids.iter().for_each(|id| {
+            self.available_ids.push(Reverse(*id));
             self.background_processes.shift_remove(id);
         });
     }
