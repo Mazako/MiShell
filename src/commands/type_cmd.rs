@@ -1,7 +1,7 @@
 use crate::command::Command;
 use crate::command_type::CommandType;
 use crate::shell_state::ShellState;
-use crate::token::Input;
+use crate::token::{Input, parse_line};
 
 pub struct Type {
     pub(super) input: Input,
@@ -20,7 +20,8 @@ impl Command for Type {
             self.print(Some(""), None);
             return;
         }
-        let cmd = super::command_from_input(&args[0], ctx);
+        let line = parse_line(&args[0]);
+        let cmd = super::command_from_input(line.input, ctx);
         let line = match cmd.command_type() {
             CommandType::Builtin => format!("{} is a shell builtin", cmd.name()),
             CommandType::Executable(path) => {

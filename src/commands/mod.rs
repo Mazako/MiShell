@@ -13,7 +13,7 @@ use crate::commands::exec::Exec;
 use crate::commands::jobs::Jobs;
 use crate::commands::pwd::Pwd;
 use crate::shell_state::ShellState;
-use crate::token::parse_input;
+use crate::token::{Input, parse_line};
 
 pub use cd::Cd;
 pub use echo::Echo;
@@ -23,8 +23,7 @@ pub use unknown::UnknownCommand;
 
 use crate::commands::complete::Complete;
 
-pub fn command_from_input(input: &str, ctx: &ShellState) -> Box<dyn Command> {
-    let input = parse_input(input);
+pub fn command_from_input(input: Input, ctx: &ShellState) -> Box<dyn Command> {
     let command = input.command.as_str();
 
     match command {

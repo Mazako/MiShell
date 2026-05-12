@@ -3,6 +3,7 @@ mod tokenizer;
 use std::fs::{File, OpenOptions};
 
 pub use tokenizer::parse_input;
+pub use tokenizer::parse_line;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RedirectTarget {
@@ -38,7 +39,13 @@ pub struct Input {
     pub command: String,
     pub args: Vec<String>,
     pub redirect: Option<InputRedirect>,
-    pub background: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Line {
+    pub input: Input,
+    pub pipes: Vec<Input>,
+    pub background: bool
 }
 
 impl Input {

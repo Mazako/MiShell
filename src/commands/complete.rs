@@ -130,7 +130,6 @@ mod tests {
             command: "complete".to_string(),
             args: words.iter().map(|w| w.to_string()).collect(),
             redirect: None,
-            background: false,
         }
     }
 

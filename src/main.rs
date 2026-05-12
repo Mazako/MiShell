@@ -12,7 +12,7 @@ use commands::command_from_input;
 use my_helper::MyHelper;
 use rustyline::{CompletionType, Config, Editor, config::BellStyle};
 
-use crate::shell_state::ShellState;
+use crate::{shell_state::ShellState, token::parse_line};
 
 fn main() -> Result<(), Error> {
     let state = Rc::new(RefCell::new(ShellState::new()));
@@ -22,7 +22,7 @@ fn main() -> Result<(), Error> {
     if args.len() > 1 {
         let input = args[1..].join(" ");
         let mut s = state.borrow_mut();
-        let command = command_from_input(input.trim(), &s);
+        let command = command_from_input(parse_line(&input).input, &s);
         command.execute(&mut s);
         exit(0)
     }
@@ -49,8 +49,9 @@ fn main() -> Result<(), Error> {
         drop(state_mut);
         let input = rl.readline("$ ")?;
         let mut state_mut = state.borrow_mut();
-        let command = command_from_input(input.trim(), &state_mut);
-        if command.input().background {
+        let line = parse_line(&input);
+        let command = command_from_input(line.input.clone(), &state_mut);
+        if line.background {
             let child = command.execute_background();
             let (id, pid) = state_mut.add_child(child, &input);
             println!("[{id}] {pid}")

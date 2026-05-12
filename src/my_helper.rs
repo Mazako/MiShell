@@ -7,7 +7,7 @@ use rustyline::{
 
 use crate::{
     shell_state::ShellState,
-    token::{Input, parse_input},
+    token::{Input, parse_input, parse_line},
 };
 
 #[derive(Helper, Highlighter, Hinter, Validator)]
@@ -22,7 +22,8 @@ impl MyHelper {
             return Ok((0, Vec::new()));
         }
 
-        let tokens = parse_input(line.trim());
+        //TODO add suppport for completion
+        let tokens = parse_line(line).input;
 
         let (target, prev1, prev2) = triplet(line, pos, &tokens);
 

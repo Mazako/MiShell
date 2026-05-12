@@ -1,26 +1,63 @@
 use pest::{Parser, iterators::Pair};
 use pest_derive::Parser;
 
-use crate::token::{Input, InputRedirect, RedirectTarget};
+use crate::token::{Input, InputRedirect, Line, RedirectTarget};
 
 #[derive(Parser)]
 #[grammar = "token/grammar.pest"]
 struct ShellParser;
 
-pub fn parse_input(line: &str) -> Input {
+fn print_ast(pair: Pair<Rule>, indent: usize) {
+    let spacing = "  ".repeat(indent);
+
+    let rule = pair.as_rule();
+    let str_val = pair.as_str();
+
+    let mut inner = pair.into_inner();
+    let first_child = inner.next();
+
+    match first_child {
+        Some(first) => {
+            println!("{}{:?}", spacing, rule);
+            print_ast(first, indent + 1);
+            for child in inner {
+                print_ast(child, indent + 1);
+            }
+        }
+        None => {
+            println!("{}{:?}: {:?}", spacing, rule, str_val);
+        }
+    }
+}
+
+pub fn parse_line(line: &str) -> Line {
     let parsed = ShellParser::parse(Rule::line, line).unwrap();
+    let root = parsed.into_iter().next().unwrap();
+    let mut background = false;
+    let mut input= None;
+    let mut pipes: Vec<Input> = Vec::new();
+    for r in root.into_inner() {
+        match r.as_rule() {
+            Rule::input => input = Some(parse_input(r)),
+            Rule::pipe => pipes.push(parse_input(r)),
+            Rule::background => background = true,
+            _ => {}
+        }
+    }
+    let input = input.unwrap();
+    Line { input, pipes, background }
+}
+
+pub fn parse_input(rule: Pair<'_, Rule>) -> Input {
     let mut command = String::new();
     let mut args: Vec<String> = Vec::new();
     let mut redirect = None;
-    let mut background = false;
-    let root = parsed.into_iter().next().unwrap();
 
-    for r in root.into_inner() {
+    for r in rule.into_inner() {
         match r.as_rule() {
             Rule::arg => args.push(arg_to_str(r)),
             Rule::command => command = arg_to_str(r),
             Rule::redirect => redirect = Some(parse_redirect(r)),
-            Rule::background => background = true,
             _ => {}
         }
     }
@@ -29,7 +66,6 @@ pub fn parse_input(line: &str) -> Input {
         command,
         args,
         redirect,
-        background,
     }
 }
 

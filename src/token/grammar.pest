@@ -44,6 +44,8 @@ background = { "&" }
 
 element = _{ redirect | arg }
 input = { redirect* ~ command ~ element* }
-pipe = { "|" ~ input}
+
+pipe_sep  = _{ "|" }
+pipe = { pipe_sep ~ input}
 
 line = { SOI ~ input ~ pipe* ~ background* ~ EOI }
