@@ -42,4 +42,8 @@ redirect = { write_stdout | write_stderr | override_stdout | override_sterr }
 
 background = { "&" }
 
-line = { SOI ~ command ~ arg* ~ redirect* ~ background* ~ EOI }
+element = _{ redirect | arg }
+input = { redirect* ~ command ~ element* }
+pipe = { "|" ~ input}
+
+line = { SOI ~ input ~ pipe* ~ background* ~ EOI }
