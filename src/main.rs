@@ -64,6 +64,7 @@ fn main() -> Result<(), Error> {
             continue;
         }
         let mut state_mut = state.borrow_mut();
+        state_mut.add_to_history(&input);
         let line = parse_line(&input);
         let command = command_from_input(line.input.clone(), &state_mut);
             

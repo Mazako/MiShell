@@ -3,6 +3,7 @@ use std::{
 };
 
 use indexmap::IndexMap;
+use rustyline::history;
 
 const JOB_STATUS_WIDTH: usize = 21;
 
@@ -55,6 +56,7 @@ pub struct ShellState {
     background_processes: IndexMap<u32, (Child, String)>,
     available_ids: BinaryHeap<Reverse<u32>>,
     id_generator: u32,
+    history: Vec<String>
 }
 
 impl ShellState {
@@ -72,6 +74,7 @@ impl ShellState {
             background_processes: IndexMap::new(),
             available_ids: BinaryHeap::new(),
             id_generator: 1,
+            history: Vec::new()
         }
     }
 
@@ -146,6 +149,14 @@ impl ShellState {
             println!("{line}");
         }
         self.remove_childs(&done_ids);
+    }
+
+    pub fn add_to_history(&mut self, line: &str) {
+        self.history.push(line.to_string());
+    }
+
+    pub fn history(&self, n: usize) -> &[String] {
+        &self.history[n..]
     }
 }
 

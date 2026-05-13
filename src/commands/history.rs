@@ -16,7 +16,17 @@ impl Command for History {
     }
 
     fn execute(&self, ctx: &mut ShellState) {
-        todo!()
+        let n = self
+            .input
+            .args
+            .first()
+            .map(|f| f.parse::<usize>().unwrap_or(0))
+            .unwrap_or(0);
+
+        for (i, cmd) in ctx.history(n).iter().enumerate() {
+            let idx = i + 1 + n;
+            println!("{idx}  {cmd}")
+        }
     }
 
     fn command_type(&self) -> crate::command_type::CommandType {
