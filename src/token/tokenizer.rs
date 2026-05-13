@@ -39,7 +39,7 @@ pub fn parse_line(line: &str) -> Line {
     for r in root.into_inner() {
         match r.as_rule() {
             Rule::input => input = Some(parse_input(r)),
-            Rule::pipe => pipes.push(parse_input(r)),
+            Rule::pipe => pipes.push(parse_input(r.into_inner().next().unwrap())),
             Rule::background => background = true,
             _ => {}
         }

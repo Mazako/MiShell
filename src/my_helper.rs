@@ -7,7 +7,7 @@ use rustyline::{
 
 use crate::{
     shell_state::ShellState,
-    token::{Input, parse_input, parse_line},
+    token::{Input, parse_line},
 };
 
 #[derive(Helper, Highlighter, Hinter, Validator)]

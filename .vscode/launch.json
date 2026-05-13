@@ -1,0 +1,45 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug shell (interactive terminal)",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=codecrafters-shell",
+          "--package=codecrafters-shell"
+        ],
+        "filter": {
+          "name": "codecrafters-shell",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "terminal": "integrated",
+      "sourceLanguages": ["rust"]
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug shell — one-shot args (e.g. echo hi)",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=codecrafters-shell",
+          "--package=codecrafters-shell"
+        ],
+        "filter": {
+          "name": "codecrafters-shell",
+          "kind": "bin"
+        }
+      },
+      "args": ["echo", "hi"],
+      "cwd": "${workspaceFolder}",
+      "terminal": "integrated",
+      "sourceLanguages": ["rust"]
+    }
+  ]
+}

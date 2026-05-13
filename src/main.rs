@@ -5,14 +5,26 @@ mod my_helper;
 mod shell_state;
 mod token;
 
-use std::{cell::RefCell, env::args, process::exit, rc::Rc};
+use std::{
+    cell::RefCell,
+    env::{self, args},
+    io::Read,
+    path::PathBuf,
+    process::{Stdio, exit},
+    rc::Rc,
+};
 
 use anyhow::Error;
 use commands::command_from_input;
 use my_helper::MyHelper;
 use rustyline::{CompletionType, Config, Editor, config::BellStyle};
 
-use crate::{shell_state::ShellState, token::parse_line};
+use crate::{
+    command::Command,
+    command_type::CommandType::{Builtin, Executable, Unrecognized},
+    shell_state::ShellState,
+    token::{Line, parse_line},
+};
 
 fn main() -> Result<(), Error> {
     let state = Rc::new(RefCell::new(ShellState::new()));
@@ -48,9 +60,13 @@ fn main() -> Result<(), Error> {
         state_mut.print_and_reap(true);
         drop(state_mut);
         let input = rl.readline("$ ")?;
+        if input.trim().is_empty() {
+            continue;
+        }
         let mut state_mut = state.borrow_mut();
         let line = parse_line(&input);
         let command = command_from_input(line.input.clone(), &state_mut);
+            
         if line.background {
             let child = command.execute_background();
             let (id, pid) = state_mut.add_child(child, &input);
@@ -58,5 +74,56 @@ fn main() -> Result<(), Error> {
         } else {
             command.execute(&mut state_mut);
         }
+    }
+}
+
+//TODO: Implement when more time :)
+fn pipeline(line: Line, state_mut: &mut ShellState) -> std::io::Result<()> {
+    let commands: Vec<Box<dyn Command>> = [line.input]
+        .iter()
+        .chain(line.pipes.iter())
+        .map(|f| command_from_input(f.clone(), state_mut))
+        .collect();
+
+    let first_command = &commands[0];
+    let (path, args) = exec_and_args(first_command.as_ref());
+    let mut child = std::process::Command::new(path)
+        .args(args)
+        .stdout(Stdio::piped())
+        .spawn()?;
+
+    for ele in &commands[1..] {
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| std::io::Error::other("Cannot open stdout"))?;
+        let (path, args) = exec_and_args(ele.as_ref());
+        child = std::process::Command::new(path)
+            .args(args)
+            .stdout(Stdio::piped())
+            .stdin(Stdio::from(stdout))
+            .spawn()?;
+    }
+    let mut out = String::new();
+    child
+        .stdout
+        .take()
+        .ok_or_else(|| std::io::Error::other("Cannot open stdout"))?
+        .read_to_string(&mut out)?;
+    print!("{out}");
+    child.wait()?;
+    Ok(())
+}
+
+fn exec_and_args(cmd: &dyn Command) -> (PathBuf, Vec<String>) {
+    match cmd.command_type() {
+        Builtin | Unrecognized => (
+            env::current_exe().unwrap(),
+            vec![cmd.name().to_string()]
+                .into_iter()
+                .chain(cmd.args())
+                .collect(),
+        ),
+        Executable(path_buf) => (path_buf, cmd.args()),
     }
 }
