@@ -56,7 +56,7 @@ pub struct ShellState {
     background_processes: IndexMap<u32, (Child, String)>,
     available_ids: BinaryHeap<Reverse<u32>>,
     id_generator: u32,
-    history: Vec<String>
+    pub history: Vec<String>
 }
 
 impl ShellState {
@@ -155,9 +155,14 @@ impl ShellState {
         self.history.push(line.to_string());
     }
 
-    pub fn history(&self, n: usize) -> &[String] {
-        &self.history[n..]
+    pub fn history_last_n(&self, n: usize) -> &[String] {
+        &self.history[self.history.len()-n..]
     }
+
+    pub fn history_len(&self) -> usize {
+        self.history.len()
+    }
+
 }
 
 pub fn is_executable(metadata: Metadata) -> bool {
