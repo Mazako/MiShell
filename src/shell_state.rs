@@ -1,9 +1,18 @@
 use std::{
-    cmp::Reverse, collections::{BinaryHeap, HashMap}, fs::{self, Metadata}, io, os::unix::fs::PermissionsExt, path::PathBuf, process::{Child, ExitStatus}
+    cell::RefCell,
+    cmp::Reverse,
+    collections::{BinaryHeap, HashMap},
+    fs::{self, Metadata},
+    io,
+    os::unix::fs::PermissionsExt,
+    path::PathBuf,
+    process::{Child, ExitStatus},
+    rc::Rc,
 };
 
 use indexmap::IndexMap;
-use rustyline::history;
+
+use crate::shell_history::ShellHistory;
 
 const JOB_STATUS_WIDTH: usize = 21;
 
@@ -14,12 +23,12 @@ enum JobWaitOutcome {
 
 fn interpret_job_wait(result: io::Result<Option<ExitStatus>>, done_only: bool) -> JobWaitOutcome {
     match result {
-        Ok(Some(_)) => JobWaitOutcome::Show {
+        io::Result::Ok(Some(_)) => JobWaitOutcome::Show {
             status: "Done",
             reap: true,
         },
-        Ok(None) if done_only => JobWaitOutcome::Skip,
-        Ok(None) => JobWaitOutcome::Show {
+        io::Result::Ok(None) if done_only => JobWaitOutcome::Skip,
+        io::Result::Ok(None) => JobWaitOutcome::Show {
             status: "Running",
             reap: false,
         },
@@ -42,10 +51,7 @@ fn job_list_marker(index: usize, total: usize) -> &'static str {
 }
 
 fn format_job_row(id: u32, marker: &str, status: &str, command: &str) -> String {
-    format!(
-        "[{id}]{marker}{status:<w$}{command}",
-        w = JOB_STATUS_WIDTH
-    )
+    format!("[{id}]{marker}{status:<w$}{command}", w = JOB_STATUS_WIDTH)
 }
 
 pub struct ShellState {
@@ -56,11 +62,15 @@ pub struct ShellState {
     background_processes: IndexMap<u32, (Child, String)>,
     available_ids: BinaryHeap<Reverse<u32>>,
     id_generator: u32,
-    pub history: Vec<String>
+    history_store: Rc<RefCell<ShellHistory>>,
 }
 
 impl ShellState {
     pub fn new() -> Self {
+        Self::with_history(Rc::new(RefCell::new(ShellHistory::default())))
+    }
+
+    pub fn with_history(history_store: Rc<RefCell<ShellHistory>>) -> Self {
         let path_dirs = std::env::var("PATH")
             .map(|p| p.split(':').map(PathBuf::from).collect())
             .unwrap_or_default();
@@ -74,7 +84,7 @@ impl ShellState {
             background_processes: IndexMap::new(),
             available_ids: BinaryHeap::new(),
             id_generator: 1,
-            history: Vec::new()
+            history_store,
         }
     }
 
@@ -87,7 +97,7 @@ impl ShellState {
             new_id
         }
     }
-    
+
     pub fn find_in_path(&self, command: &str) -> Option<PathBuf> {
         self.path_commands.get(command).cloned()
     }
@@ -111,13 +121,8 @@ impl ShellState {
     pub fn add_child(&mut self, child: Child, line: &str) -> (u32, u32) {
         let pid = child.id();
         let id = self.background_id();
-        let cmd_line = line
-            .trim_end()
-            .trim_end_matches('&')
-            .trim_end()
-            .to_string();
-        self.background_processes
-            .insert(id, (child, cmd_line));
+        let cmd_line = line.trim_end().trim_end_matches('&').trim_end().to_string();
+        self.background_processes.insert(id, (child, cmd_line));
         (id, pid)
     }
 
@@ -142,7 +147,12 @@ impl ShellState {
             if reap {
                 done_ids.push(*id);
             }
-            lines.push(format_job_row(*id, job_list_marker(i, total), status, command));
+            lines.push(format_job_row(
+                *id,
+                job_list_marker(i, total),
+                status,
+                command,
+            ));
         }
 
         for line in lines {
@@ -151,18 +161,19 @@ impl ShellState {
         self.remove_childs(&done_ids);
     }
 
-    pub fn add_to_history(&mut self, line: &str) {
-        self.history.push(line.to_string());
-    }
-
-    pub fn history_last_n(&self, n: usize) -> &[String] {
-        &self.history[self.history.len()-n..]
+    pub fn history_last_n(&self, n: usize) -> Vec<String> {
+        let inner = self.history_store.borrow();
+        let len = inner.history.len();
+        if len == 0 {
+            return Vec::new();
+        }
+        let take = n.min(len);
+        inner.history[len - take..].to_vec()
     }
 
     pub fn history_len(&self) -> usize {
-        self.history.len()
+        self.history_store.borrow().history.len()
     }
-
 }
 
 pub fn is_executable(metadata: Metadata) -> bool {
@@ -172,11 +183,11 @@ pub fn is_executable(metadata: Metadata) -> bool {
 fn collect_path_execs(path_dirs: &Vec<PathBuf>) -> HashMap<String, PathBuf> {
     let mut map: HashMap<String, PathBuf> = HashMap::new();
     for dir in path_dirs {
-        if let Ok(res) = fs::read_dir(dir) {
+        if let io::Result::Ok(res) = fs::read_dir(dir) {
             for e in res.flatten() {
-                if let Ok(metadata) = e.metadata()
+                if let io::Result::Ok(metadata) = e.metadata()
                     && metadata.is_file()
-                    && let Ok(name) = e.file_name().into_string()
+                    && let std::result::Result::Ok(name) = e.file_name().into_string()
                     && is_executable(metadata)
                     && !map.contains_key(&name)
                 {
@@ -187,3 +198,5 @@ fn collect_path_execs(path_dirs: &Vec<PathBuf>) -> HashMap<String, PathBuf> {
     }
     map
 }
+
+

@@ -4,6 +4,7 @@ mod commands;
 mod my_helper;
 mod shell_state;
 mod token;
+mod shell_history;
 
 use std::{
     cell::RefCell,
@@ -22,28 +23,34 @@ use rustyline::{CompletionType, Config, Editor, config::BellStyle};
 use crate::{
     command::Command,
     command_type::CommandType::{Builtin, Executable, Unrecognized},
+    shell_history::{SharedShellHistory, ShellHistory},
     shell_state::ShellState,
     token::{Line, parse_line},
 };
 
 fn main() -> Result<(), Error> {
-    let state = Rc::new(RefCell::new(ShellState::new()));
 
     let args: Vec<String> = args().collect();
 
     if args.len() > 1 {
+        let mut state = ShellState::new();
         let input = args[1..].join(" ");
-        let mut s = state.borrow_mut();
-        let command = command_from_input(parse_line(&input).input, &s);
-        command.execute(&mut s);
+        let command = command_from_input(parse_line(&input).input, &state);
+        command.execute(&mut state);
         exit(0)
     }
+    
+    let history_rc = Rc::new(RefCell::new(ShellHistory::default()));
+    let state = Rc::new(RefCell::new(ShellState::with_history(Rc::clone(
+        &history_rc,
+    ))));
 
     let cfg = Config::builder()
         .completion_type(CompletionType::List)
         .bell_style(BellStyle::Audible)
+        .auto_add_history(true)
         .build();
-    let mut rl = Editor::with_config(cfg)?;
+    let mut rl = Editor::with_history(cfg, SharedShellHistory(Rc::clone(&history_rc)))?;
     let helper = MyHelper {
         commands: vec![
             "echo".to_string(),
@@ -64,10 +71,9 @@ fn main() -> Result<(), Error> {
             continue;
         }
         let mut state_mut = state.borrow_mut();
-        state_mut.add_to_history(&input);
         let line = parse_line(&input);
         let command = command_from_input(line.input.clone(), &state_mut);
-            
+
         if line.background {
             let child = command.execute_background();
             let (id, pid) = state_mut.add_child(child, &input);
