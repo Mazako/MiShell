@@ -10,7 +10,6 @@ use rustyline::{
     history::{History, SearchDirection, SearchResult},
 };
 
-/// Bufor linii — bez `History`; readline używa [`SharedShellHistory`].
 #[derive(Default)]
 pub struct ShellHistory {
     pub history: Vec<String>,
