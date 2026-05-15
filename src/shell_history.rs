@@ -1,6 +1,8 @@
 use std::{
     borrow::Cow,
     cell::RefCell,
+    fs,
+    io,
     path::Path,
     rc::Rc,
 };
@@ -13,6 +15,23 @@ use rustyline::{
 #[derive(Default)]
 pub struct ShellHistory {
     pub history: Vec<String>,
+}
+
+impl ShellHistory {
+    pub fn read_from_file(&mut self, path: &Path) -> std::result::Result<(), String> {
+        let contents = fs::read_to_string(path).map_err(|e| match e.kind() {
+            io::ErrorKind::NotFound => {
+                format!("history: {}: No such file or directory", path.display())
+            }
+            io::ErrorKind::PermissionDenied => {
+                format!("history: {}: Permission denied", path.display())
+            }
+            _ => format!("history: {}: {e}", path.display()),
+        })?;
+        let lines: Vec<String> = contents.lines().map(str::to_string).collect();
+        self.history.extend(lines);
+        Ok(())
+    }
 }
 
 pub struct SharedShellHistory(pub Rc<RefCell<ShellHistory>>);

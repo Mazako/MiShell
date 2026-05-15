@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::{command::Command, shell_state::ShellState, token::Input};
 
 pub struct History {
@@ -16,6 +18,19 @@ impl Command for History {
     }
 
     fn execute(&self, ctx: &mut ShellState) {
+        if !self.args().is_empty() && &self.input.args[0] == "-r" {
+            let Some(path_arg) = self.input.args.get(1) else {
+                self.print(None, Some("history: -r: missing file operand"));
+                return;
+            };
+            let path = Path::new(path_arg);
+            match ctx.history_store.borrow_mut().read_from_file(path) {
+                Ok(()) => {}
+                Err(msg) => self.print(None, Some(&msg)),
+            }
+            return;
+        }
+        
         let n = self
             .input
             .args

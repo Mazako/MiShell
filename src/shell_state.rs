@@ -62,7 +62,7 @@ pub struct ShellState {
     background_processes: IndexMap<u32, (Child, String)>,
     available_ids: BinaryHeap<Reverse<u32>>,
     id_generator: u32,
-    history_store: Rc<RefCell<ShellHistory>>,
+    pub history_store: Rc<RefCell<ShellHistory>>,
 }
 
 impl ShellState {
