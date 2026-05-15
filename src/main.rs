@@ -2,9 +2,9 @@ mod command;
 mod command_type;
 mod commands;
 mod my_helper;
+mod shell_history;
 mod shell_state;
 mod token;
-mod shell_history;
 
 use std::{
     cell::RefCell,
@@ -29,7 +29,6 @@ use crate::{
 };
 
 fn main() -> Result<(), Error> {
-
     let args: Vec<String> = args().collect();
 
     if args.len() > 1 {
@@ -39,7 +38,7 @@ fn main() -> Result<(), Error> {
         command.execute(&mut state);
         exit(0)
     }
-    
+
     let history_rc = Rc::new(RefCell::new(ShellHistory::default()));
     let state = Rc::new(RefCell::new(ShellState::with_history(Rc::clone(
         &history_rc,

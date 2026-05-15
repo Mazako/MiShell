@@ -1,11 +1,4 @@
-use std::{
-    borrow::Cow,
-    cell::RefCell,
-    fs,
-    io,
-    path::Path,
-    rc::Rc,
-};
+use std::{borrow::Cow, cell::RefCell, fs, io, path::Path, rc::Rc};
 
 use rustyline::{
     Result,
@@ -19,18 +12,28 @@ pub struct ShellHistory {
 
 impl ShellHistory {
     pub fn read_from_file(&mut self, path: &Path) -> std::result::Result<(), String> {
-        let contents = fs::read_to_string(path).map_err(|e| match e.kind() {
-            io::ErrorKind::NotFound => {
-                format!("history: {}: No such file or directory", path.display())
-            }
-            io::ErrorKind::PermissionDenied => {
-                format!("history: {}: Permission denied", path.display())
-            }
-            _ => format!("history: {}: {e}", path.display()),
-        })?;
+        let contents = fs::read_to_string(path).map_err(map_io_error(path))?;
         let lines: Vec<String> = contents.lines().map(str::to_string).collect();
         self.history.extend(lines);
         Ok(())
+    }
+
+    pub fn write_to_file(&self, path: &Path) -> std::result::Result<(), String> {
+        let mut result = self.history.join("\n");
+        result.push('\n');
+        fs::write(path, result).map_err(map_io_error(path))
+    }
+}
+
+fn map_io_error(path: &Path) -> impl FnOnce(io::Error) -> String {
+    |e| match e.kind() {
+        io::ErrorKind::NotFound => {
+            format!("history: {}: No such file or directory", path.display())
+        }
+        io::ErrorKind::PermissionDenied => {
+            format!("history: {}: Permission denied", path.display())
+        }
+        _ => format!("history: {}: {e}", path.display()),
     }
 }
 

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{command::Command, shell_state::ShellState, token::Input};
+use crate::{command::Command, shell_history::ShellHistory, shell_state::ShellState, token::Input};
 
 pub struct History {
     input: Input,
@@ -10,6 +10,25 @@ impl History {
     pub fn new(input: Input) -> Self {
         Self { input }
     }
+
+    fn with_history_file(
+        &self,
+        ctx: &mut ShellState,
+        flag: &str,
+        op: impl FnOnce(&mut ShellHistory, &Path) -> std::result::Result<(), String>,
+    ) {
+        let Some(path_arg) = self.input.args.get(1) else {
+            self.print(
+                None,
+                Some(&format!("history: {flag}: missing file operand")),
+            );
+            return;
+        };
+        match op(&mut ctx.history_store.borrow_mut(), Path::new(path_arg)) {
+            Ok(()) => {}
+            Err(msg) => self.print(None, Some(&msg)),
+        }
+    }
 }
 
 impl Command for History {
@@ -18,19 +37,20 @@ impl Command for History {
     }
 
     fn execute(&self, ctx: &mut ShellState) {
-        if !self.args().is_empty() && &self.input.args[0] == "-r" {
-            let Some(path_arg) = self.input.args.get(1) else {
-                self.print(None, Some("history: -r: missing file operand"));
-                return;
-            };
-            let path = Path::new(path_arg);
-            match ctx.history_store.borrow_mut().read_from_file(path) {
-                Ok(()) => {}
-                Err(msg) => self.print(None, Some(&msg)),
+        if let Some(flag) = self.input.args.first() {
+            match flag.as_str() {
+                "-r" => {
+                    self.with_history_file(ctx, "-r", ShellHistory::read_from_file);
+                    return;
+                }
+                "-w" => {
+                    self.with_history_file(ctx, "-w", |h, p| h.write_to_file(p));
+                    return;
+                }
+                _ => {}
             }
-            return;
         }
-        
+
         let n = self
             .input
             .args
