@@ -1,4 +1,11 @@
-use std::{borrow::Cow, cell::RefCell, fs, io, path::Path, rc::Rc};
+use std::{
+    borrow::Cow,
+    cell::RefCell,
+    fs::{self, OpenOptions},
+    io::{self, Write},
+    path::Path,
+    rc::Rc,
+};
 
 use rustyline::{
     Result,
@@ -8,6 +15,7 @@ use rustyline::{
 #[derive(Default)]
 pub struct ShellHistory {
     pub history: Vec<String>,
+    last_append_idx: usize
 }
 
 impl ShellHistory {
@@ -22,6 +30,23 @@ impl ShellHistory {
         let mut result = self.history.join("\n");
         result.push('\n');
         fs::write(path, result).map_err(map_io_error(path))
+    }
+
+    pub fn append_to_file(&mut self, path: &Path) -> std::result::Result<(), String> {
+        if self.last_append_idx == self.history.len() {
+            return Ok(());
+        }
+        let hist_slize = &self.history[self.last_append_idx..];
+        let mut result = hist_slize.join("\n");
+        result.push('\n');
+        let mut file = OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(path)
+            .map_err(map_io_error(path))?;
+        let _ = file.write_all(result.as_bytes()).map_err(map_io_error(path));
+        self.last_append_idx = self.history.len();
+        Ok(())
     }
 }
 

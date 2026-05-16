@@ -46,6 +46,10 @@ impl Command for History {
                 "-w" => {
                     self.with_history_file(ctx, "-w", |h, p| h.write_to_file(p));
                     return;
+                },
+                "-a" => {
+                    self.with_history_file(ctx, "-a", |h, p| h.append_to_file(p));
+                    return;
                 }
                 _ => {}
             }
