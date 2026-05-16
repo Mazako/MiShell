@@ -113,7 +113,8 @@ impl History for SharedShellHistory {
         Ok(())
     }
 
-    fn load(&mut self, _path: &Path) -> Result<()> {
+    fn load(&mut self, path: &Path) -> Result<()> {
+        let _ = self.0.borrow_mut().read_from_file(path);
         Ok(())
     }
 

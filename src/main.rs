@@ -61,6 +61,7 @@ fn main() -> Result<(), Error> {
         state: Rc::clone(&state),
     };
     rl.set_helper(Some(helper));
+    load_history(&mut rl);
     loop {
         let mut state_mut = state.borrow_mut();
         state_mut.print_and_reap(true);
@@ -80,6 +81,12 @@ fn main() -> Result<(), Error> {
         } else {
             command.execute(&mut state_mut);
         }
+    }
+}
+
+fn load_history(rl: &mut Editor<MyHelper, SharedShellHistory>) {
+    if let Ok(file) =  std::env::var("HISTFILE") {
+        let _ = rl.load_history(&file);
     }
 }
 
