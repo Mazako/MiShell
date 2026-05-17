@@ -14,9 +14,8 @@ impl Exit {
 }
 
 impl Command for Exit {
-    fn execute(&self, _ctx: &mut ShellState) {
-        self.print(None, None);
-        std::process::exit(0);
+    fn execute(&self, ctx: &mut ShellState) {
+        ctx.running = false;
     }
 
     fn input(&self) -> Input {

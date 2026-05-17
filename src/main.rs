@@ -10,7 +10,7 @@ use std::{
     cell::RefCell,
     env::{self, args},
     io::Read,
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Stdio, exit},
     rc::Rc,
 };
@@ -61,7 +61,9 @@ fn main() -> Result<(), Error> {
         state: Rc::clone(&state),
     };
     rl.set_helper(Some(helper));
-    load_history(&mut rl);
+    with_histfile(&mut rl, |r, p| {
+        let _ = r.load_history(p);
+    });
     loop {
         let mut state_mut = state.borrow_mut();
         state_mut.print_and_reap(true);
@@ -81,12 +83,28 @@ fn main() -> Result<(), Error> {
         } else {
             command.execute(&mut state_mut);
         }
+        if !state_mut.running {
+            break;
+        }
     }
+    with_histfile(&mut rl, |r, p| {
+        let _ = r.save_history(p);
+    });
+    Ok(())
 }
 
 fn load_history(rl: &mut Editor<MyHelper, SharedShellHistory>) {
-    if let Ok(file) =  std::env::var("HISTFILE") {
+    if let Ok(file) = std::env::var("HISTFILE") {
         let _ = rl.load_history(&file);
+    }
+}
+
+fn with_histfile(
+    rl: &mut Editor<MyHelper, SharedShellHistory>,
+    mut fun: impl FnMut(&mut Editor<MyHelper, SharedShellHistory>, &Path),
+) {
+    if let Ok(file) = std::env::var("HISTFILE") {
+        fun(rl, Path::new(&file));
     }
 }
 

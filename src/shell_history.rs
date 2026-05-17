@@ -105,7 +105,8 @@ impl History for SharedShellHistory {
 
     fn ignore_space(&mut self, _yes: bool) {}
 
-    fn save(&mut self, _path: &Path) -> Result<()> {
+    fn save(&mut self, path: &Path) -> Result<()> {
+       let _ = self.0.borrow_mut().write_to_file(path);
         Ok(())
     }
 

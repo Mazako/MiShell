@@ -63,6 +63,7 @@ pub struct ShellState {
     available_ids: BinaryHeap<Reverse<u32>>,
     id_generator: u32,
     pub history_store: Rc<RefCell<ShellHistory>>,
+    pub running: bool
 }
 
 impl ShellState {
@@ -85,6 +86,7 @@ impl ShellState {
             available_ids: BinaryHeap::new(),
             id_generator: 1,
             history_store,
+            running: true
         }
     }
 
