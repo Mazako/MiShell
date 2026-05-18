@@ -8,8 +8,10 @@ mod pwd;
 mod type_cmd;
 mod unknown;
 mod history;
+mod declare;
 
 use crate::command::Command;
+use crate::commands::declare::Declare;
 use crate::commands::exec::Exec;
 use crate::commands::history::History;
 use crate::commands::jobs::Jobs;
@@ -36,6 +38,7 @@ pub fn command_from_input(input: Input, ctx: &ShellState) -> Box<dyn Command> {
         "complete" => Box::new(Complete::new(input)),
         "jobs" => Box::new(Jobs::new(input)),
         "history" => Box::new(History::new(input)),
+        "declare" => Box::new(Declare::new(input)),
         _ => {
             if let Some(path) = ctx.find_in_path(command) {
                 Box::new(Exec::new(input, path))
