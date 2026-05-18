@@ -22,7 +22,7 @@ impl Command for Declare {
                     if let Some(value) = ctx.variables.get(key) {
                         self.print(Some(&format!("declare -- {key}=\"{value}\"")), None)
                     } else {
-                        self.print(None, Some(&format!("declare: {key} :variable not found")));
+                        self.print(None, Some(&format!("declare: {key}: not found")));
                     }
                 }
             } else {
