@@ -1,3 +1,5 @@
+use regex::Regex;
+
 use crate::{command::Command, command_type::CommandType, shell_state::ShellState, token::Input};
 
 pub struct Declare {
@@ -27,7 +29,11 @@ impl Command for Declare {
                 }
             } else {
                 if let Some((name, value)) = first.split_once('=') {
-                    ctx.variables.insert(name.to_string(), value.to_string());
+                    if !is_valid_variable_name(name) {
+                        self.print(None, Some(&format!("declare: `{name}={value}': not a valid identifier")));
+                    } else {
+                        ctx.variables.insert(name.to_string(), value.to_string());
+                    }
                 }
             }
         }
@@ -39,5 +45,13 @@ impl Command for Declare {
 
     fn name(&self) -> &str {
         "declare"
+    }
+}
+
+fn is_valid_variable_name(var: &str) -> bool {
+    if let Ok(regex) = Regex::new("^[_a-zA-Z][_0-9a-zA-Z]*$") {
+        regex.is_match(var)
+    } else {
+        false
     }
 }
