@@ -67,10 +67,10 @@ impl Command for Cd {
         let raw = PathBuf::from(&args[0]);
         let path = match Self::resolve_target(raw, &ctx.cwd) {
             Ok(p) => p,
-            Err(msg) => return self.print(None, Some(&msg)),
+            Err(msg) => return self.print_stderr(&msg),
         };
         if let Err(msg) = Self::apply_chdir(&path, ctx) {
-            self.print(None, Some(&msg));
+            self.print_stderr(&msg);
         }
     }
 

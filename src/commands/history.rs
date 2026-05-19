@@ -18,15 +18,12 @@ impl History {
         op: impl FnOnce(&mut ShellHistory, &Path) -> std::result::Result<(), String>,
     ) {
         let Some(path_arg) = self.input.args.get(1) else {
-            self.print(
-                None,
-                Some(&format!("history: {flag}: missing file operand")),
-            );
+            self.print_stderr(&format!("history: {flag}: missing file operand"));
             return;
         };
         match op(&mut ctx.history_store.borrow_mut(), Path::new(path_arg)) {
             Ok(()) => {}
-            Err(msg) => self.print(None, Some(&msg)),
+            Err(msg) => self.print_stderr(&msg),
         }
     }
 }
@@ -71,7 +68,7 @@ impl Command for History {
             result.push(format!("{}  {}", start_idx + i, cmd));
         }
 
-        self.print(Some(&result.join("\n")), None);
+        self.print_stdout(&result.join("\n"));
     }
 
     fn command_type(&self) -> crate::command_type::CommandType {

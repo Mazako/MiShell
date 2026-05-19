@@ -22,15 +22,15 @@ impl Command for Declare {
             if first.as_str() == "-p" {
                 if let Some(key) = self.input.args.get(1) {
                     if let Some(value) = ctx.variables.get(key) {
-                        self.print(Some(&format!("declare -- {key}=\"{value}\"")), None)
+                        self.print_stdout(&format!("declare -- {key}=\"{value}\""));
                     } else {
-                        self.print(None, Some(&format!("declare: {key}: not found")));
+                        self.print_stderr(&format!("declare: {key}: not found"));
                     }
                 }
             } else {
                 if let Some((name, value)) = first.split_once('=') {
                     if !is_valid_variable_name(name) {
-                        self.print(None, Some(&format!("declare: `{name}={value}': not a valid identifier")));
+                        self.print_stderr(&format!("declare: `{name}={value}': not a valid identifier"));
                     } else {
                         ctx.variables.insert(name.to_string(), value.to_string());
                     }

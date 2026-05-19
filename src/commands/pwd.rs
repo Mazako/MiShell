@@ -15,7 +15,7 @@ impl Pwd {
 
 impl Command for Pwd {
     fn execute(&self, ctx: &mut ShellState) {
-        self.print(Some(ctx.cwd.to_str().unwrap()), None);
+        self.print_stdout(ctx.cwd.to_str().unwrap());
     }
 
     fn input(&self) -> Input {

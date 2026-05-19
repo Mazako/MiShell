@@ -17,7 +17,7 @@ impl Command for Type {
     fn execute(&self, ctx: &mut ShellState) {
         let args = self.args();
         if args.is_empty() {
-            self.print(Some(""), None);
+            self.print_stdout("");
             return;
         }
         let line = parse_line(&args[0]);
@@ -29,7 +29,7 @@ impl Command for Type {
             }
             CommandType::Unrecognized => format!("{}: not found", cmd.name()),
         };
-        self.print(Some(&line), None);
+        self.print_stdout(&line);
     }
 
     fn input(&self) -> Input {

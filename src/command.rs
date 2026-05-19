@@ -68,6 +68,14 @@ pub trait Command {
         }
     }
 
+    fn print_stdout(&self, s: &str) {
+        self.print(Some(s), None);
+    }
+
+    fn print_stderr(&self, s: &str) {
+        self.print(None, Some(s));
+    }
+
     fn apply_redirects(&self, command: &mut std::process::Command) {
         if let StreamTarget::Redirect(r) = self.stdout() {
             command.stdout(Stdio::from(r.open_write()));

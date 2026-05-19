@@ -83,12 +83,9 @@ impl Command for Complete {
                 if let Some(cmd) = parsed.flags.get("-p") {
                     if let Some(path) = ctx.completion_script_for(cmd) {
                         let script_path = path.display().to_string();
-                        self.print(Some(&format!("complete -C '{script_path}' {cmd}")), None);
+                        self.print_stdout(&format!("complete -C '{script_path}' {cmd}"));
                     } else {
-                        self.print(
-                            None,
-                            Some(&format!("complete: {cmd}: no completion specification")),
-                        );
+                        self.print_stderr(&format!("complete: {cmd}: no completion specification"));
                     }
                     return;
                 }
@@ -96,14 +93,14 @@ impl Command for Complete {
                     if let Some(target) = &parsed.target {
                         ctx.add_completion_script(target, PathBuf::from(cmd));
                     } else {
-                        self.print(None, Some(&format!("complete: {cmd}: no target specified")));
+                        self.print_stderr(&format!("complete: {cmd}: no target specified"));
                     }
                 }
                 if let Some(cmd) = parsed.flags.get("-r") {
                     ctx.remove_completion_script(cmd);
                 }
             }
-            Err(e) => self.print(None, Some(&format!("{e}"))),
+            Err(e) => self.print_stderr(&format!("{e}")),
         }
     }
 

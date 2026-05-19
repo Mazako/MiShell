@@ -15,10 +15,7 @@ impl UnknownCommand {
 
 impl Command for UnknownCommand {
     fn execute(&self, _ctx: &mut ShellState) {
-        self.print(
-            None,
-            Some(&format!("{}: command not found", self.input.command)),
-        );
+        self.print_stderr(&format!("{}: command not found", self.input.command));
     }
 
     fn input(&self) -> Input {
