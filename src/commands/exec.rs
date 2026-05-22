@@ -17,16 +17,16 @@ impl Exec {
 }
 
 impl Command for Exec {
-    fn execute(&self, _ctx: &mut ShellState) {
+    fn execute(&self, ctx: &mut ShellState) {
         let mut command = std::process::Command::new(&self.input.command);
-        command.args(self.args());
+        command.args(self.args(ctx));
         self.apply_redirects(&mut command);
         command.status().unwrap();
     }
 
-    fn execute_background(&self) -> std::process::Child {
+    fn execute_background(&self, ctx: &mut ShellState) -> std::process::Child {
         std::process::Command::new(&self.input.command)
-            .args(&self.input.args)
+            .args(self.args(ctx))
             .spawn()
             .unwrap()
     }

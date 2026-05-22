@@ -15,7 +15,7 @@ impl Type {
 
 impl Command for Type {
     fn execute(&self, ctx: &mut ShellState) {
-        let args = self.args();
+        let args = self.args(ctx);
         if args.is_empty() {
             self.print_stdout("");
             return;

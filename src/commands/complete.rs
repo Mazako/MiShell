@@ -33,8 +33,8 @@ impl Complete {
         Self { input }
     }
 
-    fn parse(&self) -> Result<ParsedComplete, CompleteParseError> {
-        let words = self.input.args.clone();
+    fn parse(&self, ctx: &ShellState) -> Result<ParsedComplete, CompleteParseError> {
+        let words = self.input.args(ctx);
         let mut flags = HashMap::new();
         let mut target: Option<String> = None;
         let mut iter = words.into_iter().peekable();
@@ -78,7 +78,7 @@ fn validate_flag(flag: &str) -> Result<(), CompleteParseError> {
 
 impl Command for Complete {
     fn execute(&self, ctx: &mut ShellState) {
-        match self.parse() {
+        match self.parse(ctx) {
             Ok(parsed) => {
                 if let Some(cmd) = parsed.flags.get("-p") {
                     if let Some(path) = ctx.completion_script_for(cmd) {
@@ -120,20 +120,24 @@ impl Command for Complete {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::token::Input;
+    use crate::token::{Arg, Input};
 
     fn input(words: &[&str]) -> Input {
-        Input {
-            command: "complete".to_string(),
-            args: words.iter().map(|w| w.to_string()).collect(),
-            redirect: None,
-        }
+        Input::new(
+            "complete".to_string(),
+            words.iter().map(|w| Arg::String(w.to_string())).collect(),
+            None,
+        )
+    }
+
+    fn ctx() -> ShellState {
+        ShellState::new()
     }
 
     #[test]
     fn empty_ok() {
         let c = Complete::new(input(&[]));
-        let p = c.parse().unwrap();
+        let p = c.parse(&ctx()).unwrap();
         assert!(p.flags.is_empty());
         assert_eq!(p.target, None);
     }
@@ -141,7 +145,7 @@ mod tests {
     #[test]
     fn only_target_ok() {
         let c = Complete::new(input(&["git"]));
-        let p = c.parse().unwrap();
+        let p = c.parse(&ctx()).unwrap();
         assert!(p.flags.is_empty());
         assert_eq!(p.target.as_deref(), Some("git"));
     }
@@ -149,7 +153,7 @@ mod tests {
     #[test]
     fn pairs_only_no_target_ok() {
         let c = Complete::new(input(&["-C", "/bin/c"]));
-        let p = c.parse().unwrap();
+        let p = c.parse(&ctx()).unwrap();
         assert_eq!(p.flags.get("-C").map(String::as_str), Some("/bin/c"));
         assert_eq!(p.target, None);
     }
@@ -157,7 +161,7 @@ mod tests {
     #[test]
     fn two_flags_and_target_ok() {
         let c = Complete::new(input(&["-C", "/bin/c", "-o", "default", "git"]));
-        let p = c.parse().unwrap();
+        let p = c.parse(&ctx()).unwrap();
         assert_eq!(p.flags.get("-C").map(String::as_str), Some("/bin/c"));
         assert_eq!(p.flags.get("-o").map(String::as_str), Some("default"));
         assert_eq!(p.target.as_deref(), Some("git"));
@@ -167,7 +171,7 @@ mod tests {
     fn lone_flag_err() {
         let c = Complete::new(input(&["-C"]));
         assert!(matches!(
-            c.parse(),
+            c.parse(&ctx()),
             Err(CompleteParseError::FlagWithoutValue(_))
         ));
     }
@@ -176,7 +180,7 @@ mod tests {
     fn value_looks_like_flag_err() {
         let c = Complete::new(input(&["-C", "-nope", "git"]));
         assert!(matches!(
-            c.parse(),
+            c.parse(&ctx()),
             Err(CompleteParseError::ValueLooksLikeFlag { .. })
         ));
     }
@@ -184,6 +188,6 @@ mod tests {
     #[test]
     fn stray_words_after_pairs_err() {
         let c = Complete::new(input(&["-C", "/bin/c", "a", "b"]));
-        assert!(matches!(c.parse(), Err(CompleteParseError::TrailingWords)));
+        assert!(matches!(c.parse(&ctx()), Err(CompleteParseError::TrailingWords)));
     }
 }

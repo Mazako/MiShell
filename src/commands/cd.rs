@@ -60,7 +60,7 @@ impl Cd {
 impl Command for Cd {
     fn execute(&self, ctx: &mut ShellState) {
         self.print(None, None);
-        let args = self.args();
+        let args = self.args(ctx);
         if args.is_empty() {
             return;
         }

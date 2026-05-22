@@ -77,7 +77,7 @@ fn main() -> Result<(), Error> {
         let command = command_from_input(line.input.clone(), &state_mut);
 
         if line.background {
-            let child = command.execute_background();
+            let child = command.execute_background(&mut state_mut);
             let (id, pid) = state_mut.add_child(child, &input);
             println!("[{id}] {pid}")
         } else {
@@ -117,7 +117,7 @@ fn pipeline(line: Line, state_mut: &mut ShellState) -> std::io::Result<()> {
         .collect();
 
     let first_command = &commands[0];
-    let (path, args) = exec_and_args(first_command.as_ref());
+    let (path, args) = exec_and_args(first_command.as_ref(), state_mut);
     let mut child = std::process::Command::new(path)
         .args(args)
         .stdout(Stdio::piped())
@@ -128,7 +128,7 @@ fn pipeline(line: Line, state_mut: &mut ShellState) -> std::io::Result<()> {
             .stdout
             .take()
             .ok_or_else(|| std::io::Error::other("Cannot open stdout"))?;
-        let (path, args) = exec_and_args(ele.as_ref());
+        let (path, args) = exec_and_args(ele.as_ref(), state_mut);
         child = std::process::Command::new(path)
             .args(args)
             .stdout(Stdio::piped())
@@ -146,15 +146,15 @@ fn pipeline(line: Line, state_mut: &mut ShellState) -> std::io::Result<()> {
     Ok(())
 }
 
-fn exec_and_args(cmd: &dyn Command) -> (PathBuf, Vec<String>) {
+fn exec_and_args(cmd: &dyn Command, ctx: &ShellState) -> (PathBuf, Vec<String>) {
     match cmd.command_type() {
         Builtin | Unrecognized => (
             env::current_exe().unwrap(),
             vec![cmd.name().to_string()]
                 .into_iter()
-                .chain(cmd.args())
+                .chain(cmd.args(ctx))
                 .collect(),
         ),
-        Executable(path_buf) => (path_buf, cmd.args()),
+        Executable(path_buf) => (path_buf, cmd.args(ctx)),
     }
 }

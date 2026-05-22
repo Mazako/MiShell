@@ -17,7 +17,8 @@ impl History {
         flag: &str,
         op: impl FnOnce(&mut ShellHistory, &Path) -> std::result::Result<(), String>,
     ) {
-        let Some(path_arg) = self.input.args.get(1) else {
+        let args = self.input.args(ctx);
+        let Some(path_arg) = args.get(1) else {
             self.print_stderr(&format!("history: {flag}: missing file operand"));
             return;
         };
@@ -34,7 +35,8 @@ impl Command for History {
     }
 
     fn execute(&self, ctx: &mut ShellState) {
-        if let Some(flag) = self.input.args.first() {
+        let args = self.input.args(ctx);
+        if let Some(flag) = args.first() {
             match flag.as_str() {
                 "-r" => {
                     self.with_history_file(ctx, "-r", ShellHistory::read_from_file);
@@ -52,9 +54,7 @@ impl Command for History {
             }
         }
 
-        let n = self
-            .input
-            .args
+        let n = args
             .first()
             .map(|f| f.parse::<usize>().unwrap_or(0))
             .unwrap_or(0);

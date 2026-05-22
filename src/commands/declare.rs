@@ -18,9 +18,10 @@ impl Command for Declare {
     }
 
     fn execute(&self, ctx: &mut ShellState) {
-        if let Some(first) = self.input.args.first() {
+        let args = self.input.args(ctx);
+        if let Some(first) = args.first() {
             if first.as_str() == "-p" {
-                if let Some(key) = self.input.args.get(1) {
+                if let Some(key) = args.get(1) {
                     if let Some(value) = ctx.variables.get(key) {
                         self.print_stdout(&format!("declare -- {key}=\"{value}\""));
                     } else {

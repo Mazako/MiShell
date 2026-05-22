@@ -14,8 +14,8 @@ impl Echo {
 }
 
 impl Command for Echo {
-    fn execute(&self, _ctx: &mut ShellState) {
-        self.print_stdout(&self.args().join(" "));
+    fn execute(&self, ctx: &mut ShellState) {
+        self.print_stdout(&self.args(ctx).join(" "));
     }
 
     fn input(&self) -> Input {

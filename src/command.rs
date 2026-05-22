@@ -16,17 +16,17 @@ pub trait Command {
 
     fn execute(&self, ctx: &mut ShellState);
 
-    fn execute_background(&self) -> Child {
-        let input = &self.input();
+    fn execute_background(&self, ctx: &mut ShellState) -> Child {
+        let input = self.input();
         let curr_exe = std::env::current_exe().unwrap();
         std::process::Command::new(curr_exe)
-            .args(&input.args)
+            .args(input.args(ctx))
             .spawn()
             .unwrap()
     }
 
-    fn args(&self) -> Vec<String> {
-        self.input().args
+    fn args(&self, ctx: &ShellState) -> Vec<String> {
+        self.input().args(ctx)
     }
 
     fn stdout(&self) -> StreamTarget {
