@@ -17,10 +17,11 @@ SPECIAL_CHARS = {
   | "&"
 }
 
-regular_part = @{ (!WHITESPACE ~ !"'" ~ !SPECIAL_CHARS ~ ANY)+ }
-variable     = ${ "$" ~ regular_part }
-escape_char  = @{ "\\" ~ ANY }
-word         = ${ (regular_part | escape_char)+ }
+regular_part    = @{ (!WHITESPACE ~ !"'" ~ !SPECIAL_CHARS ~ ANY)+ }
+variable        = ${ "$" ~ !"{" ~ regular_part }
+braces_variable = ${ "${" ~ (!"}" ~ !SPECIAL_CHARS ~ ANY)+ ~ "}" }
+escape_char     = @{ "\\" ~ ANY }
+word            = ${ (regular_part | escape_char)+ }
 
 quoted_part = @{ "'" ~ (!"'" ~ ANY)* ~ "'" }
 
@@ -29,7 +30,7 @@ double_quoted_escape_interpreted = @{ "\\" ~ ("\"" | "\\" | "$" | "`" | "\n") }
 double_quoted_escape_literal     = @{ "\\" ~ (!"\n" ~ ANY) }
 double_quoted_part               = ${ "\"" ~ (double_quoted_regular | double_quoted_escape_interpreted | double_quoted_escape_literal)* ~ "\"" }
 
-segment = { word | quoted_part | double_quoted_part | variable }
+segment = { word | quoted_part | double_quoted_part | braces_variable | variable }
 
 arg     = ${ segment+ }
 command =  { segment }

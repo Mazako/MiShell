@@ -33,6 +33,7 @@ fn print_ast(pair: Pair<Rule>, indent: usize) {
 pub fn parse_line(line: &str) -> Line {
     let parsed = ShellParser::parse(Rule::line, line).unwrap();
     let root = parsed.into_iter().next().unwrap();
+    // print_ast(root.clone(), 0);
     let mut background = false;
     let mut input = None;
     let mut pipes: Vec<Input> = Vec::new();
@@ -121,9 +122,19 @@ fn segment_to_arg(segment: Pair<'_, Rule>) -> Arg {
         Rule::quoted_part => Arg::String(sanitize_quoted_part(inner.as_str()).to_string()),
         Rule::double_quoted_part => Arg::String(double_quoted_to_str(inner)),
         Rule::variable => Arg::Variable(inner.as_str()[1..].to_string()),
+        Rule::braces_variable => Arg::Variable(braces_variable_to_str(inner.as_str())),
         _ => panic!("unexpected segment content"),
     }
 }
+
+fn braces_variable_to_str(variable: &str) -> String {
+    if variable == "${}" {
+        String::new()
+    } else {
+        variable[2..variable.len()-1].to_string()
+    }
+}
+
 
 fn segment_to_str(rule: Pair<'_, Rule>) -> String {
     let next = rule.into_inner().next().unwrap();
@@ -186,6 +197,12 @@ mod tests {
     fn parse_from_joined_argv() {
         let parts = vec!["custom_exe_1806 $Raspberry_4 apple_$Blueberry_6".to_string()];
         parse_line(&parts.join(" "));
+    }
+
+    #[test]
+    fn parse_braces_variable() {
+        let line = parse_line("echo ${a}");
+        assert_eq!(line.input.args(&ShellState::new()).len(), 1);
     }
 
     #[test]
