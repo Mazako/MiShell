@@ -1,32 +1,5 @@
-use crate::command::Command;
-use crate::command_type::CommandType;
-use crate::shell_state::ShellState;
-use crate::token::Input;
+use crate::{command_io, shell_state::ShellState, token::Input};
 
-pub struct UnknownCommand {
-    pub(super) input: Input,
-}
-
-impl UnknownCommand {
-    pub(super) fn new(input: Input) -> Self {
-        Self { input }
-    }
-}
-
-impl Command for UnknownCommand {
-    fn execute(&self, _ctx: &mut ShellState) {
-        self.print_stderr(&format!("{}: command not found", self.input.command));
-    }
-
-    fn input(&self) -> Input {
-        self.input.clone()
-    }
-
-    fn command_type(&self) -> CommandType {
-        CommandType::Unrecognized
-    }
-
-    fn name(&self) -> &str {
-        &self.input.command
-    }
+pub fn run(input: &Input, _ctx: &ShellState) {
+    command_io::print_stderr(input, &format!("{}: command not found", input.command));
 }

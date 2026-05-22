@@ -1,4 +1,5 @@
-mod command;
+mod command_io;
+mod command_spec;
 mod command_type;
 mod commands;
 mod my_helper;
@@ -16,17 +17,13 @@ use std::{
 };
 
 use anyhow::Error;
-use commands::command_from_input;
+use command_spec::CommandSpec;
+use command_type::CommandType::{Builtin, Executable, Unrecognized};
 use my_helper::MyHelper;
 use rustyline::{CompletionType, Config, Editor, config::BellStyle};
-
-use crate::{
-    command::Command,
-    command_type::CommandType::{Builtin, Executable, Unrecognized},
-    shell_history::{SharedShellHistory, ShellHistory},
-    shell_state::ShellState,
-    token::{Line, parse_line},
-};
+use shell_history::{SharedShellHistory, ShellHistory};
+use shell_state::ShellState;
+use token::{Line, parse_line};
 
 fn main() -> Result<(), Error> {
     let args: Vec<String> = args().collect();
@@ -34,7 +31,7 @@ fn main() -> Result<(), Error> {
     if args.len() > 1 {
         let mut state = ShellState::new();
         let input = args[1..].join(" ");
-        let command = command_from_input(parse_line(&input).input, &state);
+        let command = CommandSpec::resolve(parse_line(&input).input, &state);
         command.execute(&mut state);
         exit(0)
     }
@@ -74,7 +71,7 @@ fn main() -> Result<(), Error> {
         }
         let mut state_mut = state.borrow_mut();
         let line = parse_line(&input);
-        let command = command_from_input(line.input.clone(), &state_mut);
+        let command = CommandSpec::resolve(line.input, &state_mut);
 
         if line.background {
             let child = command.execute_background(&mut state_mut);
@@ -93,12 +90,6 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn load_history(rl: &mut Editor<MyHelper, SharedShellHistory>) {
-    if let Ok(file) = std::env::var("HISTFILE") {
-        let _ = rl.load_history(&file);
-    }
-}
-
 fn with_histfile(
     rl: &mut Editor<MyHelper, SharedShellHistory>,
     mut fun: impl FnMut(&mut Editor<MyHelper, SharedShellHistory>, &Path),
@@ -110,14 +101,13 @@ fn with_histfile(
 
 //TODO: Implement when more time :)
 fn pipeline(line: Line, state_mut: &mut ShellState) -> std::io::Result<()> {
-    let commands: Vec<Box<dyn Command>> = [line.input]
-        .iter()
-        .chain(line.pipes.iter())
-        .map(|f| command_from_input(f.clone(), state_mut))
+    let commands: Vec<CommandSpec> = std::iter::once(line.input)
+        .chain(line.pipes)
+        .map(|input| CommandSpec::resolve(input, state_mut))
         .collect();
 
     let first_command = &commands[0];
-    let (path, args) = exec_and_args(first_command.as_ref(), state_mut);
+    let (path, args) = exec_and_args(first_command, state_mut);
     let mut child = std::process::Command::new(path)
         .args(args)
         .stdout(Stdio::piped())
@@ -128,7 +118,7 @@ fn pipeline(line: Line, state_mut: &mut ShellState) -> std::io::Result<()> {
             .stdout
             .take()
             .ok_or_else(|| std::io::Error::other("Cannot open stdout"))?;
-        let (path, args) = exec_and_args(ele.as_ref(), state_mut);
+        let (path, args) = exec_and_args(ele, state_mut);
         child = std::process::Command::new(path)
             .args(args)
             .stdout(Stdio::piped())
@@ -146,12 +136,11 @@ fn pipeline(line: Line, state_mut: &mut ShellState) -> std::io::Result<()> {
     Ok(())
 }
 
-fn exec_and_args(cmd: &dyn Command, ctx: &ShellState) -> (PathBuf, Vec<String>) {
+fn exec_and_args(cmd: &CommandSpec, ctx: &ShellState) -> (PathBuf, Vec<String>) {
     match cmd.command_type() {
         Builtin | Unrecognized => (
             env::current_exe().unwrap(),
-            vec![cmd.name().to_string()]
-                .into_iter()
+            std::iter::once(cmd.name().to_string())
                 .chain(cmd.args(ctx))
                 .collect(),
         ),

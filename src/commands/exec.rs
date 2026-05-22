@@ -1,45 +1,18 @@
 use std::path::PathBuf;
+use std::process::Child;
 
-use crate::command::Command;
-use crate::command_type::CommandType;
-use crate::shell_state::ShellState;
-use crate::token::Input;
+use crate::{command_io, shell_state::ShellState, token::Input};
 
-pub struct Exec {
-    input: Input,
-    path: PathBuf,
+pub fn run(input: &Input, _path: &PathBuf, ctx: &ShellState) {
+    let mut command = std::process::Command::new(&input.command);
+    command.args(input.args(ctx));
+    command_io::apply_redirects(input, &mut command);
+    command.status().unwrap();
 }
 
-impl Exec {
-    pub(super) fn new(input: Input, path: PathBuf) -> Self {
-        Self { input, path }
-    }
-}
-
-impl Command for Exec {
-    fn execute(&self, ctx: &mut ShellState) {
-        let mut command = std::process::Command::new(&self.input.command);
-        command.args(self.args(ctx));
-        self.apply_redirects(&mut command);
-        command.status().unwrap();
-    }
-
-    fn execute_background(&self, ctx: &mut ShellState) -> std::process::Child {
-        std::process::Command::new(&self.input.command)
-            .args(self.args(ctx))
-            .spawn()
-            .unwrap()
-    }
-
-    fn input(&self) -> Input {
-        self.input.clone()
-    }
-
-    fn command_type(&self) -> CommandType {
-        CommandType::Executable(PathBuf::from(&self.path))
-    }
-
-    fn name(&self) -> &str {
-        &self.input.command
-    }
+pub fn spawn_background(input: &Input, ctx: &ShellState) -> Child {
+    std::process::Command::new(&input.command)
+        .args(input.args(ctx))
+        .spawn()
+        .unwrap()
 }

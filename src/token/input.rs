@@ -1,6 +1,6 @@
 use crate::{shell_state::ShellState, token::arg_type::Arg};
 
-use super::input_redirect::InputRedirect;
+use super::{input_redirect::InputRedirect, redirect_target::RedirectTarget};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Input {
@@ -15,6 +15,18 @@ impl Input {
             command,
             args,
             redirect,
+        }
+    }
+
+    pub fn redirect_for(&self, target: RedirectTarget) -> Option<&InputRedirect> {
+        self.redirect.as_ref().filter(|r| r.target == target)
+    }
+
+    pub fn touch_redirects(&self) {
+        for target in [RedirectTarget::Stdout, RedirectTarget::Stderr] {
+            if let Some(r) = self.redirect_for(target) {
+                r.touch();
+            }
         }
     }
 

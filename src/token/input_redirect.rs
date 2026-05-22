@@ -1,4 +1,5 @@
-use std::fs::{File, OpenOptions};
+use std::fs::{self, File, OpenOptions};
+use std::path::Path;
 
 use super::redirect_target::RedirectTarget;
 
@@ -11,6 +12,11 @@ pub struct InputRedirect {
 
 impl InputRedirect {
     pub fn open_write(&self) -> File {
+        if let Some(parent) = Path::new(&self.path).parent() {
+            if !parent.as_os_str().is_empty() {
+                fs::create_dir_all(parent).unwrap();
+            }
+        }
         let mut opts = OpenOptions::new();
         opts.create(true).write(true);
         if self.append {

@@ -2,16 +2,16 @@ use std::{collections::HashMap, path::PathBuf};
 
 use thiserror::Error;
 
-use crate::{command::Command, command_type::CommandType, shell_state::ShellState, token::Input};
+use crate::{command_io, shell_state::ShellState, token::Input};
 
 #[derive(Debug, Default, Clone)]
-pub(super) struct ParsedComplete {
+pub struct ParsedComplete {
     pub flags: HashMap<String, String>,
     pub target: Option<String>,
 }
 
 #[derive(Debug, Error)]
-pub(super) enum CompleteParseError {
+pub enum CompleteParseError {
     #[error("complete: flag {0:?} has no value")]
     FlagWithoutValue(String),
     #[error("complete: unexpected extra arguments")]
@@ -24,42 +24,32 @@ pub(super) enum CompleteParseError {
     ValueLooksLikeFlag { flag: String, value: String },
 }
 
-pub(super) struct Complete {
-    input: Input,
-}
+pub fn parse(input: &Input, ctx: &ShellState) -> Result<ParsedComplete, CompleteParseError> {
+    let words = input.args(ctx);
+    let mut flags = HashMap::new();
+    let mut target: Option<String> = None;
+    let mut iter = words.into_iter().peekable();
 
-impl Complete {
-    pub(super) fn new(input: Input) -> Self {
-        Self { input }
-    }
-
-    fn parse(&self, ctx: &ShellState) -> Result<ParsedComplete, CompleteParseError> {
-        let words = self.input.args(ctx);
-        let mut flags = HashMap::new();
-        let mut target: Option<String> = None;
-        let mut iter = words.into_iter().peekable();
-
-        while let Some(word) = iter.next() {
-            if is_flag_like(&word) {
-                validate_flag(&word)?;
-                let Some(value) = iter.next() else {
-                    return Err(CompleteParseError::FlagWithoutValue(word));
-                };
-                if is_flag_like(&value) {
-                    return Err(CompleteParseError::ValueLooksLikeFlag { flag: word, value });
-                }
-                flags.insert(word, value);
-                continue;
+    while let Some(word) = iter.next() {
+        if is_flag_like(&word) {
+            validate_flag(&word)?;
+            let Some(value) = iter.next() else {
+                return Err(CompleteParseError::FlagWithoutValue(word));
+            };
+            if is_flag_like(&value) {
+                return Err(CompleteParseError::ValueLooksLikeFlag { flag: word, value });
             }
-
-            if target.is_some() || iter.peek().is_some() {
-                return Err(CompleteParseError::TrailingWords);
-            }
-            target = Some(word);
+            flags.insert(word, value);
+            continue;
         }
 
-        Ok(ParsedComplete { flags, target })
+        if target.is_some() || iter.peek().is_some() {
+            return Err(CompleteParseError::TrailingWords);
+        }
+        target = Some(word);
     }
+
+    Ok(ParsedComplete { flags, target })
 }
 
 fn is_flag_like(word: &str) -> bool {
@@ -76,44 +66,36 @@ fn validate_flag(flag: &str) -> Result<(), CompleteParseError> {
     Ok(())
 }
 
-impl Command for Complete {
-    fn execute(&self, ctx: &mut ShellState) {
-        match self.parse(ctx) {
-            Ok(parsed) => {
-                if let Some(cmd) = parsed.flags.get("-p") {
-                    if let Some(path) = ctx.completion_script_for(cmd) {
-                        let script_path = path.display().to_string();
-                        self.print_stdout(&format!("complete -C '{script_path}' {cmd}"));
-                    } else {
-                        self.print_stderr(&format!("complete: {cmd}: no completion specification"));
-                    }
-                    return;
+pub fn run(input: &Input, ctx: &mut ShellState) {
+    match parse(input, ctx) {
+        Ok(parsed) => {
+            if let Some(cmd) = parsed.flags.get("-p") {
+                if let Some(path) = ctx.completion_script_for(cmd) {
+                    let script_path = path.display().to_string();
+                    command_io::print_stdout(
+                        input,
+                        &format!("complete -C '{script_path}' {cmd}"),
+                    );
+                } else {
+                    command_io::print_stderr(
+                        input,
+                        &format!("complete: {cmd}: no completion specification"),
+                    );
                 }
-                if let Some(cmd) = parsed.flags.get("-C") {
-                    if let Some(target) = &parsed.target {
-                        ctx.add_completion_script(target, PathBuf::from(cmd));
-                    } else {
-                        self.print_stderr(&format!("complete: {cmd}: no target specified"));
-                    }
-                }
-                if let Some(cmd) = parsed.flags.get("-r") {
-                    ctx.remove_completion_script(cmd);
+                return;
+            }
+            if let Some(cmd) = parsed.flags.get("-C") {
+                if let Some(target) = &parsed.target {
+                    ctx.add_completion_script(target, PathBuf::from(cmd));
+                } else {
+                    command_io::print_stderr(input, &format!("complete: {cmd}: no target specified"));
                 }
             }
-            Err(e) => self.print_stderr(&format!("{e}")),
+            if let Some(cmd) = parsed.flags.get("-r") {
+                ctx.remove_completion_script(cmd);
+            }
         }
-    }
-
-    fn input(&self) -> Input {
-        self.input.clone()
-    }
-
-    fn command_type(&self) -> CommandType {
-        CommandType::Builtin
-    }
-
-    fn name(&self) -> &str {
-        "complete"
+        Err(e) => command_io::print_stderr(input, &format!("{e}")),
     }
 }
 
@@ -136,32 +118,28 @@ mod tests {
 
     #[test]
     fn empty_ok() {
-        let c = Complete::new(input(&[]));
-        let p = c.parse(&ctx()).unwrap();
+        let p = parse(&input(&[]), &ctx()).unwrap();
         assert!(p.flags.is_empty());
         assert_eq!(p.target, None);
     }
 
     #[test]
     fn only_target_ok() {
-        let c = Complete::new(input(&["git"]));
-        let p = c.parse(&ctx()).unwrap();
+        let p = parse(&input(&["git"]), &ctx()).unwrap();
         assert!(p.flags.is_empty());
         assert_eq!(p.target.as_deref(), Some("git"));
     }
 
     #[test]
     fn pairs_only_no_target_ok() {
-        let c = Complete::new(input(&["-C", "/bin/c"]));
-        let p = c.parse(&ctx()).unwrap();
+        let p = parse(&input(&["-C", "/bin/c"]), &ctx()).unwrap();
         assert_eq!(p.flags.get("-C").map(String::as_str), Some("/bin/c"));
         assert_eq!(p.target, None);
     }
 
     #[test]
     fn two_flags_and_target_ok() {
-        let c = Complete::new(input(&["-C", "/bin/c", "-o", "default", "git"]));
-        let p = c.parse(&ctx()).unwrap();
+        let p = parse(&input(&["-C", "/bin/c", "-o", "default", "git"]), &ctx()).unwrap();
         assert_eq!(p.flags.get("-C").map(String::as_str), Some("/bin/c"));
         assert_eq!(p.flags.get("-o").map(String::as_str), Some("default"));
         assert_eq!(p.target.as_deref(), Some("git"));
@@ -169,25 +147,25 @@ mod tests {
 
     #[test]
     fn lone_flag_err() {
-        let c = Complete::new(input(&["-C"]));
         assert!(matches!(
-            c.parse(&ctx()),
+            parse(&input(&["-C"]), &ctx()),
             Err(CompleteParseError::FlagWithoutValue(_))
         ));
     }
 
     #[test]
     fn value_looks_like_flag_err() {
-        let c = Complete::new(input(&["-C", "-nope", "git"]));
         assert!(matches!(
-            c.parse(&ctx()),
+            parse(&input(&["-C", "-nope", "git"]), &ctx()),
             Err(CompleteParseError::ValueLooksLikeFlag { .. })
         ));
     }
 
     #[test]
     fn stray_words_after_pairs_err() {
-        let c = Complete::new(input(&["-C", "/bin/c", "a", "b"]));
-        assert!(matches!(c.parse(&ctx()), Err(CompleteParseError::TrailingWords)));
+        assert!(matches!(
+            parse(&input(&["-C", "/bin/c", "a", "b"]), &ctx()),
+            Err(CompleteParseError::TrailingWords)
+        ));
     }
 }

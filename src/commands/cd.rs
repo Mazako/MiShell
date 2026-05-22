@@ -5,84 +5,57 @@ use std::{
 };
 
 use crate::{
-    command::Command,
-    command_type::CommandType,
-    shell_state::{ShellState, is_executable},
-    token::Input,
+    command_io, shell_state::{ShellState, is_executable}, token::Input,
 };
 
-pub struct Cd {
-    input: Input,
+fn resolve_target(raw: PathBuf, cwd: &Path) -> Result<PathBuf, String> {
+    if raw.has_root() {
+        return Ok(raw);
+    }
+    if raw == Path::new("~") {
+        return std::env::home_dir()
+            .ok_or_else(|| "cd: could not determine home directory".to_string());
+    }
+    let joined = cwd.join(&raw);
+    joined.canonicalize().map_err(|e| {
+        let target = joined.display();
+        match e.kind() {
+            ErrorKind::NotFound => format!("cd: {target}: No such file or directory"),
+            ErrorKind::PermissionDenied => format!("cd: {target}: Permission denied"),
+            _ => format!("cd: {target}: {e}"),
+        }
+    })
 }
 
-impl Cd {
-    pub(super) fn new(input: Input) -> Self {
-        Self { input }
+fn apply_chdir(path: &Path, ctx: &mut ShellState) -> Result<(), String> {
+    if !path.exists() {
+        return Err(format!("cd: {}: No such file or directory", path.display()));
     }
-
-    fn resolve_target(raw: PathBuf, cwd: &Path) -> Result<PathBuf, String> {
-        if raw.has_root() {
-            return Ok(raw);
-        }
-        if raw == Path::new("~") {
-            return std::env::home_dir()
-                .ok_or_else(|| "cd: could not determine home directory".to_string());
-        }
-        let joined = cwd.join(&raw);
-        joined.canonicalize().map_err(|e| {
-            let target = joined.display();
-            match e.kind() {
-                ErrorKind::NotFound => format!("cd: {target}: No such file or directory"),
-                ErrorKind::PermissionDenied => format!("cd: {target}: Permission denied"),
-                _ => format!("cd: {target}: {e}"),
-            }
-        })
+    if path.is_file() {
+        return Err(format!("cd: not a directory: {}", path.display()));
     }
-
-    fn apply_chdir(path: &Path, ctx: &mut ShellState) -> Result<(), String> {
-        if !path.exists() {
-            return Err(format!("cd: {}: No such file or directory", path.display()));
-        }
-        if path.is_file() {
-            return Err(format!("cd: not a directory: {}", path.display()));
-        }
-        let metadata = path
-            .metadata()
-            .map_err(|e| format!("cd: {}: {e}", path.display()))?;
-        if !is_executable(metadata) {
-            return Err("permission denied".to_string());
-        }
-        ctx.cwd = path.to_path_buf();
-        set_current_dir(&ctx.cwd).map_err(|e| format!("cd: {}: {e}", path.display()))
+    let metadata = path
+        .metadata()
+        .map_err(|e| format!("cd: {}: {e}", path.display()))?;
+    if !is_executable(metadata) {
+        return Err("permission denied".to_string());
     }
+    ctx.cwd = path.to_path_buf();
+    set_current_dir(&ctx.cwd).map_err(|e| format!("cd: {}: {e}", path.display()))
 }
 
-impl Command for Cd {
-    fn execute(&self, ctx: &mut ShellState) {
-        self.print(None, None);
-        let args = self.args(ctx);
-        if args.is_empty() {
-            return;
-        }
-        let raw = PathBuf::from(&args[0]);
-        let path = match Self::resolve_target(raw, &ctx.cwd) {
-            Ok(p) => p,
-            Err(msg) => return self.print_stderr(&msg),
-        };
-        if let Err(msg) = Self::apply_chdir(&path, ctx) {
-            self.print_stderr(&msg);
-        }
+pub fn run(input: &Input, ctx: &mut ShellState) {
+    input.touch_redirects();
+    let args = input.args(ctx);
+    if args.is_empty() {
+        return;
     }
-
-    fn input(&self) -> Input {
-        self.input.clone()
-    }
-
-    fn command_type(&self) -> CommandType {
-        CommandType::Builtin
-    }
-
-    fn name(&self) -> &str {
-        "cd"
+    let raw = PathBuf::from(&args[0]);
+    let path = match resolve_target(raw, &ctx.cwd) {
+        Ok(p) => p,
+        Err(msg) => return command_io::print_stderr(input, &msg),
+    };
+    if let Err(msg) = apply_chdir(&path, ctx) {
+        command_io::print_stderr(input, &msg);
     }
 }
