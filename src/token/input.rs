@@ -10,11 +10,7 @@ pub struct Input {
 }
 
 impl Input {
-    pub(crate) fn new(
-        command: String,
-        args: Vec<Arg>,
-        redirect: Option<InputRedirect>,
-    ) -> Self {
+    pub(crate) fn new(command: String, args: Vec<Arg>, redirect: Option<InputRedirect>) -> Self {
         Self {
             command,
             args,
@@ -23,7 +19,11 @@ impl Input {
     }
 
     pub fn args(&self, ctx: &ShellState) -> Vec<String> {
-        self.args.iter().map(|arg| self.expand_arg(arg, ctx)).collect()
+        self.args
+            .iter()
+            .map(|arg| self.expand_arg(arg, ctx))
+            .filter(|arg| !arg.is_empty())
+            .collect()
     }
 
     fn expand_arg(&self, arg: &Arg, ctx: &ShellState) -> String {
@@ -33,7 +33,7 @@ impl Input {
                 .variables
                 .get(name)
                 .cloned()
-                .unwrap_or_else(|| name.clone()),
+                .unwrap_or_else(|| "".to_string()),
             Arg::Concat { parts, .. } => parts
                 .iter()
                 .map(|part| self.expand_arg(part, ctx))
