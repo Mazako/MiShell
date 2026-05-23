@@ -10,7 +10,7 @@ mod token;
 use std::{
     cell::RefCell,
     env::{self, args},
-    io::Read,
+    io::{BufRead, BufReader, Read},
     path::{Path, PathBuf},
     process::{Stdio, exit},
     rc::Rc,
@@ -71,8 +71,13 @@ fn main() -> Result<(), Error> {
         }
         let mut state_mut = state.borrow_mut();
         let line = parse_line(&input);
-        let command = CommandSpec::resolve(line.input, &state_mut);
+        if !line.pipes.is_empty() {
+            let res = pipeline(line, &mut state_mut)?;
+            println!("{res}");
+            continue;
+        }
 
+        let command = CommandSpec::resolve(line.input, &state_mut);
         if line.background {
             let child = command.execute_background(&mut state_mut);
             let (id, pid) = state_mut.add_child(child, &input);
@@ -100,7 +105,7 @@ fn with_histfile(
 }
 
 //TODO: Implement when more time :)
-fn pipeline(line: Line, state_mut: &mut ShellState) -> std::io::Result<()> {
+fn pipeline(line: Line, state_mut: &mut ShellState) -> std::io::Result<String> {
     let commands: Vec<CommandSpec> = std::iter::once(line.input)
         .chain(line.pipes)
         .map(|input| CommandSpec::resolve(input, state_mut))
@@ -125,15 +130,20 @@ fn pipeline(line: Line, state_mut: &mut ShellState) -> std::io::Result<()> {
             .stdin(Stdio::from(stdout))
             .spawn()?;
     }
-    let mut out = String::new();
-    child
+    let mut response = Vec::new();
+    let stdout = child
         .stdout
         .take()
-        .ok_or_else(|| std::io::Error::other("Cannot open stdout"))?
-        .read_to_string(&mut out)?;
-    print!("{out}");
+        .ok_or_else(|| std::io::Error::other("Cannot open stdout"))?;
     child.wait()?;
-    Ok(())
+    let out = BufReader::new(stdout);
+    for line in out.lines() {
+        match line {
+            Ok(l) => response.push(l.to_string()),
+            Err(_) => todo!(),
+        }
+    }
+    Ok(response.join("\n"))
 }
 
 fn exec_and_args(cmd: &CommandSpec, ctx: &ShellState) -> (PathBuf, Vec<String>) {
@@ -145,5 +155,34 @@ fn exec_and_args(cmd: &CommandSpec, ctx: &ShellState) -> (PathBuf, Vec<String>) 
                 .collect(),
         ),
         Executable(path_buf) => (path_buf, cmd.args(ctx)),
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use crate::{pipeline, shell_state::ShellState, token::parse_line};
+
+    fn setup_file_24() {
+        let dir = Path::new("/tmp/dog");
+        std::fs::create_dir_all(dir).unwrap();
+        let content: String = (1..=20).map(|n| format!("{n}\n")).collect();
+        std::fs::write(dir.join("file-24"), content).unwrap();
+    }
+
+    #[test]
+    fn tail_f_pipe_head_n5() {
+        setup_file_24();
+
+        let line = parse_line("tail -f /tmp/dog/file-24 | head -n 5");
+        let mut ctx = ShellState::new();
+        let out = pipeline(line, &mut ctx).unwrap();
+
+        assert_eq!(
+            out.lines().collect::<Vec<_>>(),
+            ["11", "12", "13", "14", "15"]
+        );
     }
 }

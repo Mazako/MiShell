@@ -12,11 +12,10 @@ pub struct InputRedirect {
 
 impl InputRedirect {
     pub fn open_write(&self) -> File {
-        if let Some(parent) = Path::new(&self.path).parent() {
-            if !parent.as_os_str().is_empty() {
+        if let Some(parent) = Path::new(&self.path).parent()
+            && !parent.as_os_str().is_empty() {
                 fs::create_dir_all(parent).unwrap();
             }
-        }
         let mut opts = OpenOptions::new();
         opts.create(true).write(true);
         if self.append {
